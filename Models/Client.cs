@@ -4,9 +4,9 @@ namespace RecruitX.Models
 {
     public class Client
     {
-        public int Client_Id { get; set; }
-        public string Client_Name { get; set; }
-        public string? Client_Country { get; set; }
+        public int Id { get; set; }
+        public string ClientName { get; set; }
+        public string? ClientCountry { get; set; } 
     }
 
 }

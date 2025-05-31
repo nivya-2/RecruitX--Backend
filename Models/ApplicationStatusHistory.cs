@@ -1,0 +1,20 @@
+﻿using System;
+using RecruitX.Data;
+
+namespace RecruitX.Models;
+
+public class ApplicationStatusHistory
+{
+    public int Id { get; set; }
+
+    public int ApplicationId { get; set; }
+    public Application Application { get; set; } = null!;
+
+    public ApplicationStatus? OldStatus { get; set; }
+    public ApplicationStatus NewStatus { get; set; }
+
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+
+    public int? ChangedBy { get; set; }
+    public User? ChangedByUser { get; set; }
+}

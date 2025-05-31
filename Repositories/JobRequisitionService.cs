@@ -11,26 +11,27 @@ public sealed class JobRequisitionService(AppDbContext dbContext) : IJobRequisit
             .Include(jr => jr.CreatedByEmployee)
             .Select(jr => new
             {
-                jr.JobRequisition_Id,
+                jr.Id,
                 jr.Role,
                 jr.NumPositions,
                 jr.LocationId,
-                jr.Location.Location_Name,
+                jr.Location.LocationName,
                 HiringManager = jr.HiringManagerEmployee,
                 CreatedBy = jr.CreatedByEmployee,
                 jr.CreatedAt,
                 jr.IdealStartDate,
                 FillCount = dbContext.JobDescriptions
-                    .Where(jd => jd.JobRequisition_Id == jr.JobRequisition_Id)
-                    .Sum(jd => (int?)jd.FillPositions) ?? 0
+                    .Where(jd => jd.JobRequisitionId == jr.Id)
+                    .Sum(jd => (int?)jd.FilledPositions) ?? 0
             })
             .ToListAsync();
 
         return data.Select(jr => new TrackJrDto(
-            JobId: jr.JobRequisition_Id.ToString(),
+            JobId: jr.Id.ToString(),
             JobTitle: jr.Role,
-            Du: jr.HiringManager.DeliveryUnit ?? "N/A",
-            Location: jr.Location_Name,
+            //update the Deparment Foreign key mapping in DTO and this
+            Du: "N/A",
+            Location: jr.LocationName,
             Status: new StatusDto(
                 Filled: jr.FillCount,
                 Vacancies: (jr.NumPositions ?? 0) - jr.FillCount

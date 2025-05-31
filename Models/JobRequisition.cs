@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using RecruitX.Data;
 
 namespace RecruitX.Models
 
@@ -8,7 +9,7 @@ namespace RecruitX.Models
 
     {
         [Key]
-        public int JobRequisition_Id { get; set; }
+        public int Id { get; set; }
 
         public string BusinessUnit { get; set; }
 
@@ -19,6 +20,7 @@ namespace RecruitX.Models
         public int? HiringManager { get; set; }
 
         public int? NumPositions { get; set; }
+        public JobStatus Status { get; set; } = JobStatus.Open;
 
         public string WorkShift { get; set; }
 
@@ -29,10 +31,15 @@ namespace RecruitX.Models
         public string Role { get; set; }
 
         public string Qualification { get; set; }
+        public string JobDuties { get; set; }
 
-        public decimal? TotalExperienceRequired { get; set; }
 
-        public decimal? RelevantExperienceRequired { get; set; }
+        public int? TotalExperienceYears { get; set; }
+        public int? TotalExperienceMonths { get; set; }
+
+        public int? RelevantExperienceYears { get; set; }
+        public int? RelevantExperienceMonths { get; set; }
+
 
         public int? LocationId { get; set; }
 
@@ -44,11 +51,11 @@ namespace RecruitX.Models
 
         public string ProjectRole { get; set; }
 
-        public bool OnsiteOpportunity { get; set; }
+        public bool HasOnsiteOpportunity { get; set; }
 
-        public bool? Billable { get; set; }
+        public bool? IsBillable { get; set; }
 
-        public bool? ClientInterview { get; set; }
+        public bool? HasClientInterview { get; set; }
 
         public int? ClientId { get; set; }
 
@@ -56,9 +63,9 @@ namespace RecruitX.Models
 
         public DateTime? IdealStartDate { get; set; }
 
-        public string JdStatus { get; set; }
+        public Boolean IsClosed { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public int? CreatedBy { get; set; }
 
@@ -73,6 +80,9 @@ namespace RecruitX.Models
         public Client Client { get; set; }
 
         public Location Location { get; set; }
+        public ICollection<JobSkill> JobSkills { get; set; } = new List<JobSkill>();
+
+
 
     }
 

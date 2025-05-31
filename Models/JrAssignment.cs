@@ -2,11 +2,11 @@
 {
     public class JrAssignment
     {
-        public long AssignmentId { get; set; }
-        public int JobRequisition_Id { get; set; }
-        public long AssignedTo { get; set; }
-        public long AssignedBy { get; set; }
-        public DateTime AssignedAt { get; set; }
+        public int Id { get; set; }
+        public int JobRequisitionId { get; set; }
+        public int AssignedTo { get; set; }
+        public int AssignedBy { get; set; }
+        public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
 
         public JobRequisition JobRequisition { get; set; } = null!;
         public User AssignedToUser { get; set; } = null!;
