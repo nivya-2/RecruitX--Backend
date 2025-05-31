@@ -18,8 +18,7 @@ namespace RecruitX.Models.Config
 
             entity.Property(e => e.Rate).HasColumnName("rate").IsRequired();
             entity.Property(e => e.IdealStartDate).HasColumnName("ideal_start_date").IsRequired();
-            entity.Property(e => e.ContractType).HasColumnName("contract_type");
-            entity.Property(e => e.ContractDuration).HasColumnName("contract_duration").IsRequired();
+            entity.Property(e => e.ContractType).HasColumnName("contract_type").HasConversion<string>(); entity.Property(e => e.ContractDuration).HasColumnName("contract_duration").IsRequired();
             entity.Property(e => e.ReportingTo).HasColumnName("reporting_to").IsRequired();
             entity.Property(e => e.PreferredTimeZone).HasColumnName("preferred_time_zone").IsRequired();
             entity.Property(e => e.PreferredVisaStatus).HasColumnName("preferred_visa_status").IsRequired();

@@ -35,6 +35,11 @@
         InterviewPanel
     }
 
+    public enum ContractType
+    {
+        Contract,
+        Permanent
+    }
 
 
 }

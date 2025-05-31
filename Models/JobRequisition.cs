@@ -11,7 +11,7 @@ namespace RecruitX.Models
         [Key]
         public int Id { get; set; }
 
-        public string BusinessUnit { get; set; }
+        public int DepartmentId { get; set; }
 
         public DateTime? RequestedDate { get; set; }
 
@@ -59,7 +59,9 @@ namespace RecruitX.Models
 
         public int? ClientId { get; set; }
 
-        public string ExpectedSalaryRange { get; set; }
+        public int? ExpectedSalaryMinimum { get; set; }
+        public int? ExpectedSalaryMaximum { get; set; }
+
 
         public DateTime? IdealStartDate { get; set; }
 
@@ -80,6 +82,7 @@ namespace RecruitX.Models
         public Client Client { get; set; }
 
         public Location Location { get; set; }
+        public Department Department { get; set; }
         public ICollection<JobSkill> JobSkills { get; set; } = new List<JobSkill>();
 
 
