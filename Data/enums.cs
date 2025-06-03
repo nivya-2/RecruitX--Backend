@@ -34,6 +34,12 @@
         Recruiter,
         InterviewPanel
     }
+    public enum WorkShiftTypes
+    {
+        General,
+        UK,
+        US
+    }
 
     public enum ContractType
     {
