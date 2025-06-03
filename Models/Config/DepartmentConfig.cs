@@ -8,7 +8,7 @@ namespace RecruitX.Models.Config
     {
         public void Configure(EntityTypeBuilder<Department> entity)
         {
-            entity.ToTable("departments");
+            entity.ToTable("Departments");
 
             entity.HasKey(d => d.Id);
 
@@ -16,7 +16,7 @@ namespace RecruitX.Models.Config
                   .HasColumnName("Id");
 
             entity.Property(d => d.Name)
-                  .HasColumnName("name")
+                  .HasColumnName("Name")
                   .HasMaxLength(100)
                   .IsRequired();
 

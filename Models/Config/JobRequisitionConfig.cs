@@ -20,8 +20,9 @@ namespace RecruitX.Models.Config
             .HasDefaultValue(JobStatus.Open)
             .IsRequired();
             entity.Property(j => j.DepartmentId)
-                             .HasColumnName("business_unit_id") // Explicitly name the FK column
-                             .IsRequired(); entity.Property(j => j.RequestedDate);
+            .HasColumnName("department_id") 
+            .IsRequired();
+
             entity.Property(j => j.RequestedBy);
             entity.Property(j => j.HiringManager);
             entity.Property(j => j.NumPositions);
@@ -80,11 +81,11 @@ namespace RecruitX.Models.Config
                 .HasForeignKey(j => j.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(j => j.Department) 
-                  .WithMany(d => d.JobRequisitions) 
-                  .HasForeignKey(j => j.DepartmentId)
-                  .OnDelete(DeleteBehavior.Restrict) 
-                  .IsRequired();
+            //entity.HasOne(j => j.Department) 
+            //      .WithMany(d => d.JobRequisitions) 
+            //      .HasForeignKey(j => j.DepartmentId)
+            //      .OnDelete(DeleteBehavior.Restrict) 
+            //      .IsRequired();
         }
     }
 }

@@ -1,18 +1,28 @@
 using System;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using RecruitX.Interfaces;
+using RecruitX.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
-//builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
+
+// Add controllers, authentication, authorization, etc.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    }); 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 var app = builder.Build();
 

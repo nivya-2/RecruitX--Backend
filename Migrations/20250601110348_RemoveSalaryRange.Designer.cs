@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250531104554_JrForeignKeysDepartmentMinMaxSaaryEnum")]
-    partial class JrForeignKeysDepartmentMinMaxSaaryEnum
+    [Migration("20250601110348_RemoveSalaryRange")]
+    partial class RemoveSalaryRange
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -690,7 +690,7 @@ namespace RecruitX.Migrations
 
                     b.Property<int>("DepartmentId")
                         .HasColumnType("integer")
-                        .HasColumnName("business_unit_id");
+                        .HasColumnName("department_id");
 
                     b.Property<DateTime?>("ExpectedOnboardingDate")
                         .HasColumnType("timestamp with time zone");

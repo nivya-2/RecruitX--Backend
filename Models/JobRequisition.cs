@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using RecruitX.Data;
 
 namespace RecruitX.Models
@@ -20,10 +21,9 @@ namespace RecruitX.Models
         public int? HiringManager { get; set; }
 
         public int? NumPositions { get; set; }
-        public JobStatus Status { get; set; } = JobStatus.Open;
+        public JobStatus Status { get; set; }
 
         public string WorkShift { get; set; }
-
         public DateTime? ExpectedOnboardingDate { get; set; }
 
         public string WorkModel { get; set; }
@@ -81,8 +81,12 @@ namespace RecruitX.Models
 
         public Client Client { get; set; }
 
+
         public Location Location { get; set; }
+
         public Department Department { get; set; }
+
+        [JsonIgnore]
         public ICollection<JobSkill> JobSkills { get; set; } = new List<JobSkill>();
 
 
