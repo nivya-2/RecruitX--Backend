@@ -5,44 +5,40 @@ namespace RecruitX.Models.DTO
 {
     public class UploadJrDTO
     {
-   
         [Required]
         [StringLength(100)]
         public string Role { get; set; }
 
-        public DateTime? RequestedDate { get; set; }
+        public DateOnly? RequestedDate { get; set; }
 
-        public string? RequestedByName { get; set; } 
+        public string? RequestedByName { get; set; }
 
         [Required]
         public string DepartmentName { get; set; }
 
-        public string? HiringManagerName { get; set; } 
+        public string? HiringManagerName { get; set; }
 
-        public List<JobSkillInputDto> Skills { get; set; } = new List<JobSkillInputDto>();
+        public List<JobSkillInputDto> Skills { get; set; } = new();
 
         [Required]
         [StringLength(100)]
         public string Qualification { get; set; }
 
         public short? TotalExperienceYears { get; set; }
-        [Range(0, 11, ErrorMessage = "Months must be between 0 and 11.")]
-        public short? TotalExperienceMonths { get; set; }
+        // Removed TotalExperienceMonths
 
         public short? RelevantExperienceYears { get; set; }
-        [Range(0, 11, ErrorMessage = "Months must be between 0 and 11.")]
-        public short? RelevantExperienceMonths { get; set; }
+        // Removed RelevantExperienceMonths
 
-        public string? LocationName { get; set; } // To create a new Location
-        public string? LocationCountry { get; set; } // To create a new Location
+        public string? LocationName { get; set; }
+        public string? LocationCountry { get; set; }
 
-        public DateTime? ExpectedOnboardingDate { get; set; }
+        public DateOnly? ExpectedOnboardingDate { get; set; }
 
         public int? NumPositions { get; set; }
 
         [Required]
-        [StringLength(50)]
-        public string WorkShift { get; set; }
+        public WorkShiftTypes WorkShift { get; set; }
 
         [Required]
         public bool HasOnsiteOpportunity { get; set; }
@@ -59,10 +55,9 @@ namespace RecruitX.Models.DTO
         [StringLength(100)]
         public string ProjectRole { get; set; }
 
-        public string? ClientName { get; set; } // To create a new Client
-        public string? ClientCountry { get; set; } // To create a new Client
+        public string? ClientName { get; set; }
+        public string? ClientCountry { get; set; }
 
-        // Expected Salary Range
         public int? ExpectedSalaryMinimum { get; set; }
         public int? ExpectedSalaryMaximum { get; set; }
 
@@ -75,24 +70,12 @@ namespace RecruitX.Models.DTO
         [Required]
         public string JobSpecification { get; set; }
 
-        [Required]
-        [StringLength(50)]
-        public string WorkModel { get; set; } // Maps to JobRequisition.WorkModel
-
-        public DateTime? IdealStartDate { get; set; } // Maps to JobRequisition.IdealStartDate
-
+        public DateOnly? IdealStartDate { get; set; }
 
         public OnSiteDetailCreateDto? OnSiteDetails { get; set; }
 
-
         public string? CreatedByEmployeeName { get; set; }
 
-        public JobStatus Status {  get; set; }
+        public JobStatus Status { get; set; }
     }
-
-
 }
-
-
-
-

@@ -26,17 +26,12 @@ namespace RecruitX.Models.Config
             entity.Property(j => j.RequestedBy);
             entity.Property(j => j.HiringManager);
             entity.Property(j => j.NumPositions);
-            entity.Property(j => j.WorkShift).HasMaxLength(50);
-            entity.Property(j => j.ExpectedOnboardingDate);
-            entity.Property(j => j.WorkModel).HasMaxLength(50);
             entity.Property(j => j.Role).IsRequired().HasMaxLength(100);
             entity.Property(j => j.Qualification).HasMaxLength(100);
 
             // ✅ Separated experience columns (int) instead of decimal
             entity.Property(j => j.TotalExperienceYears);
-            entity.Property(j => j.TotalExperienceMonths);
             entity.Property(j => j.RelevantExperienceYears);
-            entity.Property(j => j.RelevantExperienceMonths);
 
             entity.Property(j => j.LocationId);
             entity.Property(j => j.JobPurpose);
@@ -49,7 +44,6 @@ namespace RecruitX.Models.Config
             entity.Property(j => j.ClientId);
             entity.Property(j => j.ExpectedSalaryMinimum);
             entity.Property(j => j.ExpectedSalaryMaximum);
-            entity.Property(j => j.IdealStartDate);
             entity.Property(j => j.IsClosed);
             entity.Property(j => j.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -80,6 +74,19 @@ namespace RecruitX.Models.Config
                 .WithMany()
                 .HasForeignKey(j => j.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(j => j.RequestedDate)
+    .HasColumnType("date"); // Ensure EF maps this as SQL DATE
+
+            entity.Property(j => j.ExpectedOnboardingDate)
+                .HasColumnType("date");
+
+            entity.Property(j => j.IdealStartDate)
+                .HasColumnType("date");
+
+            entity.Property(j => j.WorkShift)
+                .HasConversion<string>() // Store enum as string
+                .HasMaxLength(20)
+                .IsRequired();
 
             //entity.HasOne(j => j.Department) 
             //      .WithMany(d => d.JobRequisitions) 

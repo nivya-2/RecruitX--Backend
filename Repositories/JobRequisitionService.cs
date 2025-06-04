@@ -122,9 +122,7 @@ namespace RecruitX.Repositories
                     CreatedBy = designatedCreatorId,
                     Qualification = dto.Qualification,
                     TotalExperienceYears = (int?)dto.TotalExperienceYears,
-                    TotalExperienceMonths = (int?)dto.TotalExperienceMonths,
                     RelevantExperienceYears = (int?)dto.RelevantExperienceYears,
-                    RelevantExperienceMonths = (int?)dto.RelevantExperienceMonths,
                     LocationId = finalLocationId,
                     ExpectedOnboardingDate = dto.ExpectedOnboardingDate,
                     NumPositions = dto.NumPositions,
@@ -140,11 +138,10 @@ namespace RecruitX.Repositories
                     JobPurpose = dto.JobPurpose,
                     JobDuties = dto.JobDuties,
                     JobSpecification = dto.JobSpecification,
-                    WorkModel = dto.WorkModel,
                     IdealStartDate = dto.IdealStartDate,
                     CreatedAt = DateTime.UtcNow,
                     IsClosed = false,
-                    Status = dto.Status
+                    Status = JobStatus.Open
                 };
                 _context.JobRequisitions.Add(jobRequisition);
                 await _context.SaveChangesAsync();

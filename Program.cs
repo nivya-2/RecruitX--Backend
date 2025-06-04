@@ -2,13 +2,30 @@ using System;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using RecruitX.Interfaces;
+using RecruitX.Models;
 using RecruitX.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularDev", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+
 // Add services to the container.
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
+
 
 // Add controllers, authentication, authorization, etc.
 builder.Services.AddControllers()
@@ -36,6 +53,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+app.UseCors("AllowAngularDev");
 
 app.MapControllers();
 
