@@ -92,7 +92,7 @@ namespace RecruitX.Controllers
             }
 
             var role = _context.Roles.FirstOrDefault(r => r.Id == user.RoleId)?.RoleName ?? "Unknown";
-              Console.WriteLine($"Login success: {user.Username} ({email}), Role: {role}");
+            Console.WriteLine($"Login success: {user.Username} ({email}), Role: {role}");
 
 
             return Ok(new
