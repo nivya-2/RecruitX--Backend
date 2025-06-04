@@ -1,13 +1,20 @@
 using System;
 using System.Text.Json.Serialization;
+using Azure.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Graph;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Allow CORS
+var config = builder.Configuration;
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(); // Add Console logger or configure as needed
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
@@ -18,32 +25,37 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<GraphServiceClient>(provider =>
+{
+    var tenantId = config["AzureAd:TenantId"];
+    var clientId = config["AzureAd:ClientId"];
+    var clientSecret = config["AzureAd:ClientSecret"];
 
-// Add services to the container.
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-builder.Services.AddScoped<IEmailService, EmailService>();
+    var credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+    return new GraphServiceClient(credential);
+});
 
+builder.Services.AddScoped<IEmailService, GraphEmailService>();
+
+builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
+builder.Services.AddScoped<IEmailService, GraphEmailService>();
 
-
-// Add controllers, authentication, authorization, etc.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    }); 
+    });
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -51,10 +63,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 app.UseCors("AllowAngularDev");
-
 app.MapControllers();
 
 app.Run();
