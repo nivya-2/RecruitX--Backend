@@ -8,6 +8,7 @@ using RecruitX.Models;
 using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 // Allow CORS
@@ -59,6 +60,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new() { Title = "RecruitX API", Version = "v1" });
+
+    // Optional: Exclude endpoints with [Authorize] attribute
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        var authAttr = apiDesc.CustomAttributes().OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Any();
+        return !authAttr;
+    });
+});
+
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
@@ -87,7 +100,13 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
+  
 }
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "RecruitX API v1");
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
