@@ -8,13 +8,8 @@ using RecruitX.Models;
 using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
-using RecruitX.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.Configure<SmtpSettings>(
-    builder.Configuration.GetSection("SmtpSettings"));
-builder.Services.AddScoped<IEmailService, EmailService>();
-
 // Allow CORS
 builder.Services.AddCors(options =>
 {
