@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250603105343_updates-to-jr")]
+    partial class updatestojr
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -383,9 +386,6 @@ namespace RecruitX.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<int?>("EmailTemplateId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("TemplateId")
                         .HasColumnType("integer")
                         .HasColumnName("template_id");
@@ -397,8 +397,6 @@ namespace RecruitX.Migrations
                         .HasColumnName("variable_name");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EmailTemplateId");
 
                     b.HasIndex("TemplateId", "VariableName")
                         .IsUnique();
@@ -780,6 +778,11 @@ namespace RecruitX.Migrations
 
                     b.Property<int?>("TotalExperienceYears")
                         .HasColumnType("integer");
+
+                    b.Property<string>("WorkModel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("WorkShift")
                         .IsRequired()
@@ -1260,10 +1263,6 @@ namespace RecruitX.Migrations
 
             modelBuilder.Entity("RecruitX.Models.EmailTemplateVariable", b =>
                 {
-                    b.HasOne("RecruitX.Models.EmailTemplate", null)
-                        .WithMany("TemplateVariables")
-                        .HasForeignKey("EmailTemplateId");
-
                     b.HasOne("RecruitX.Models.EmailTemplate", "Template")
                         .WithMany()
                         .HasForeignKey("TemplateId")
@@ -1527,11 +1526,6 @@ namespace RecruitX.Migrations
             modelBuilder.Entity("RecruitX.Models.Department", b =>
                 {
                     b.Navigation("Employees");
-                });
-
-            modelBuilder.Entity("RecruitX.Models.EmailTemplate", b =>
-                {
-                    b.Navigation("TemplateVariables");
                 });
 
             modelBuilder.Entity("RecruitX.Models.Employee", b =>
