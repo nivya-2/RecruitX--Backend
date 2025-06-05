@@ -4,19 +4,19 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using RecruitX.Interfaces;
+using RecruitX.Repositories;
+
 using RecruitX.Models;
 using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using RecruitX.Interfaces;
-using RecruitX.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 // Allow CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularDev", policy =>
+    options.AddPolicy("AllowAngularApp", policy =>
     {
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
@@ -77,6 +77,9 @@ builder.Services.AddSwaggerGen(options =>
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
+
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 
@@ -87,9 +90,6 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     }); 
-builder.Services.AddControllers();
-builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -117,7 +117,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-app.UseCors("AllowAngularDev");
+app.UseCors("AllowAngularApp");
 app.UseSession(); 
 app.UseAuthentication();
 app.UseAuthorization();
