@@ -1,5 +1,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
+using RecruitX.Interfaces;
+using RecruitX.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
