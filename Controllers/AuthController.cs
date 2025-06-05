@@ -6,6 +6,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using RecruitX.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Logging;
 
 namespace RecruitX.Controllers
 {
@@ -14,10 +15,13 @@ namespace RecruitX.Controllers
     public class AuthController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(AppDbContext context)
+
+        public AuthController(AppDbContext context, ILogger<AuthController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet("login")]
@@ -103,15 +107,25 @@ namespace RecruitX.Controllers
             });
         }
 
+
         [HttpGet("logout")]
         public IActionResult Logout()
         {
-            return SignOut(new AuthenticationProperties
-            {
-                RedirectUri = "http://localhost:4200"
-            },
-            OpenIdConnectDefaults.AuthenticationScheme,
-            CookieAuthenticationDefaults.AuthenticationScheme);
+            var userIdentifier = User.Identity?.IsAuthenticated == true
+                ? (User.FindFirst(ClaimTypes.Email)?.Value ?? User.Identity.Name)
+                : "Anonymous";
+            _logger.LogInformation($"Logout initiated for user: {userIdentifier}.");
+
+            HttpContext.Session.Clear();
+            var postLogoutRedirectUri = "http://localhost:4200"; // Adjust to your Angular app's desired post-logout page
+
+            var properties = new AuthenticationProperties { RedirectUri = postLogoutRedirectUri };
+
+            return SignOut(properties,
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                OpenIdConnectDefaults.AuthenticationScheme);
         }
+
+
     }
 }

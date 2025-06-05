@@ -9,7 +9,6 @@ using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Allow CORS
@@ -21,22 +20,22 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
-        
     });
 });
+
+// Use the SAME authentication setup as your working login
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
 
-// Then configure OpenIdConnectOptions explicitly
+// Keep your existing cookie configurations that work with login
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
     options.CorrelationCookie.SameSite = SameSiteMode.None;
     options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
-
     options.NonceCookie.SameSite = SameSiteMode.None;
     options.NonceCookie.SecurePolicy = CookieSecurePolicy.Always;
+    
 });
-
 
 builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
@@ -46,16 +45,10 @@ builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefa
     options.SlidingExpiration = true;
 });
 
-// For API scenarios, you might want JWT Bearer instead
-// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
-
 builder.Services.AddDistributedMemoryCache();
-
-
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session expires if idle
+    options.IdleTimeout = TimeSpan.FromMinutes(30);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
@@ -63,8 +56,6 @@ builder.Services.AddSession(options =>
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new() { Title = "RecruitX API", Version = "v1" });
-
-    // Optional: Exclude endpoints with [Authorize] attribute
     options.DocInclusionPredicate((docName, apiDesc) =>
     {
         var authAttr = apiDesc.CustomAttributes().OfType<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>().Any();
@@ -74,34 +65,28 @@ builder.Services.AddSwaggerGen(options =>
 
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 
-
-// Add controllers, authentication, authorization, etc.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    }); 
+    });
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline - SAME ORDER as your working setup
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
-  
 }
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -111,11 +96,11 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseCors("AllowAngularDev");
-app.UseSession(); 
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
