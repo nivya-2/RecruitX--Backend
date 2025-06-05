@@ -12,6 +12,13 @@
         Closed,
         OnHold
     }
+
+    public enum Status
+    {
+        GenerateJD,
+        Draft,
+        Generated
+    }
     public enum ApplicationStatus
     {
         Applied,

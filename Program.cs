@@ -110,6 +110,8 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
+builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
+
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

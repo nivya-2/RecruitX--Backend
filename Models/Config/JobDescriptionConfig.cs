@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using RecruitX.Data;
 using RecruitX.Models;
 
 namespace RecruitX.Models.Config
@@ -22,7 +23,7 @@ namespace RecruitX.Models.Config
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-
+            
             entity.HasOne<JobRequisition>()
                 .WithMany()
                 .HasForeignKey(e => e.JobRequisitionId);

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250605155728_jd_status1")]
+    partial class jd_status1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -718,13 +721,6 @@ namespace RecruitX.Migrations
                     b.Property<bool>("IsClosed")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("JDstatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("GenerateJD")
-                        .HasColumnName("Jd_status");
-
                     b.Property<string>("JobDuties")
                         .IsRequired()
                         .HasColumnType("text");
@@ -736,14 +732,6 @@ namespace RecruitX.Migrations
                     b.Property<string>("JobSpecification")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("JrStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Open")
-                        .HasColumnName("status");
 
                     b.Property<int?>("LocationId")
                         .HasColumnType("integer");
@@ -780,6 +768,14 @@ namespace RecruitX.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Open")
+                        .HasColumnName("status");
+
                     b.Property<int?>("TotalExperienceYears")
                         .HasColumnType("integer");
 
@@ -787,6 +783,13 @@ namespace RecruitX.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("GenerateJD")
+                        .HasColumnName("Jd_status");
 
                     b.HasKey("Id");
 
