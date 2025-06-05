@@ -40,28 +40,24 @@ namespace RecruitX.Controllers
         {
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("CreateJobRequisition: Model state is invalid. {@ModelState}", ModelState);
+                // Log detailed validation errors for diagnostics
+                foreach (var entry in ModelState)
+                {
+                    var key = entry.Key;
+                    var errors = entry.Value.Errors;
+                    foreach (var error in errors)
+                    {
+                        _logger.LogWarning("Validation error on field '{Field}': {ErrorMessage}", key, error.ErrorMessage);
+                    }
+                }
+
+                // Return detailed errors to client for debugging
                 return BadRequest(ModelState);
             }
 
-            //var username = User.Identity?.Name;
-
-            //if (string.IsNullOrEmpty(username))
-            //{
-            //    _logger.LogWarning("CreateJobRequisition: Username not found in token.");
-            //    return Unauthorized("Username not found in token.");
-            //}
-
-
-
-
             try
             {
-                //_logger.LogInformation("Attempting to create job requisition by Username: {Username}. DTO: {@JobRequisitionDto}", username, jobRequisitionDto);
-
-                //JobRequisition createdJobRequisition = await _jobRequisitionService.CreateJobRequisitionAsync(jobRequisitionDto, username);
                 JobRequisition createdJobRequisition = await _jobRequisitionService.CreateJobRequisitionAsync(jobRequisitionDto);
-
 
                 _logger.LogInformation("Successfully created job requisition with ID: {JobRequisitionId}", createdJobRequisition.Id);
 
@@ -74,8 +70,6 @@ namespace RecruitX.Controllers
             }
             catch (DbUpdateException dbEx)
             {
-                //_logger.LogError(dbEx, "Database update error occurred while creating Job Requisition. Uploader: {username}. DTO: {@JobRequisitionDto}", username, jobRequisitionDto);
-
                 if (dbEx.InnerException != null)
                 {
                     _logger.LogError(dbEx.InnerException, "Inner exception details for DbUpdateException.");
@@ -83,12 +77,8 @@ namespace RecruitX.Controllers
 
                 return StatusCode(StatusCodes.Status500InternalServerError, $"An error occurred while saving to the database: {dbEx.InnerException?.Message ?? dbEx.Message}");
             }
-            //catch (Exception ex)
-            //{
-            //    _logger.LogError(ex, "Generic error occurred while creating Job Requisition. Uploader: {username}. DTO: {@JobRequisitionDto}", username, jobRequisitionDto);
-            //    return StatusCode(StatusCodes.Status500InternalServerError, $"An internal server error occurred: {ex.Message}");
-            //}
         }
+
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetJobRequisitionById(int id)

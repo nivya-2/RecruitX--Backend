@@ -11,9 +11,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 var config = builder.Configuration;
 
+
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole(); // Add Console logger or configure as needed
 
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("SmtpSettings"));
+builder.Services.AddScoped<IGmailEmailService, GmailEmailService>();
 
 builder.Services.AddCors(options =>
 {
