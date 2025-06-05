@@ -7,10 +7,10 @@ using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Repositories;
 using Microsoft.Identity.Web;
+using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
-
 // Allow CORS
 builder.Services.AddCors(options =>
 {
@@ -26,6 +26,10 @@ builder.Services.AddCors(options =>
 // Use the SAME authentication setup as your working login
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+
+ //builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+ //   .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), "Bearer"); 
+
 
 // Keep your existing cookie configurations that work with login
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
@@ -63,6 +67,45 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+//builder.Services.AddSwaggerGen(options =>
+//{
+//    options.SwaggerDoc("v1", new() { Title = "RecruitX API", Version = "v1" });
+
+//    // Azure AD OAuth2 setup
+//    options.AddSecurityDefinition("oauth2", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+//    {
+//        Type = Microsoft.OpenApi.Models.SecuritySchemeType.OAuth2,
+//        Flows = new Microsoft.OpenApi.Models.OpenApiOAuthFlows
+//        {
+//            AuthorizationCode = new Microsoft.OpenApi.Models.OpenApiOAuthFlow
+//            {
+//                AuthorizationUrl = new Uri("https://login.microsoftonline.com/483630a0-0bc9-4d0f-a111-df4a37015334/oauth2/v2.0/authorize"),
+//                TokenUrl = new Uri("https://login.microsoftonline.com/483630a0-0bc9-4d0f-a111-df4a37015334/oauth2/v2.0/token"),
+//                Scopes = new Dictionary<string, string>
+//                {
+//                    { "api://5901a83f-24d3-4f86-9fa1-397011ced2fe/.default", "RecruitX API" }
+//                }
+//            }
+//        }
+//    });
+
+//options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+//    {
+//        {
+//            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+//            {
+//                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+//                {
+//                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+//                    Id = "oauth2"
+//                }
+//            },
+//            new[] { "api://5901a83f-24d3-4f86-9fa1-397011ced2fe/.default" }
+//        }
+//    });
+//});
+
+
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
@@ -92,6 +135,16 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "RecruitX API v1");
 });
+//app.UseSwaggerUI(c =>
+//{
+//    c.SwaggerEndpoint("/swagger/v1/swagger.json", "RecruitX API v1");
+
+//    c.OAuthClientId("5901a83f-24d3-4f86-9fa1-397011ced2fe");
+//    c.OAuthUsePkce(); // Required for Authorization Code Flow with PKCE
+//    c.OAuthScopes("api://5901a83f-24d3-4f86-9fa1-397011ced2fe/.default");
+//    c.OAuthAppName("RecruitX Swagger UI");
+//});
+
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
