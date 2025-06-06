@@ -113,7 +113,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseCors("AllowAngularDev");
-app.UseSession(); 
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 

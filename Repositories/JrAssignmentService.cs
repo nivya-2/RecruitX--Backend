@@ -13,50 +13,47 @@ namespace RecruitX.Repositories
         {
             _context = context;
         }
-        public async Task<JrAssignment> AssignJrAsync(AssignJrDTO dto)
+
+        //public async Task<(bool Success, string Message, JrAssignment Assignment)> AssignJobRequisitionAsync(AssignJrDTO assignDto)
+        public async Task<JrAssignment> AssignJobRequisitionAsync(AssignJrDTO assignDto)
         {
-            //var assigner = await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Username == assignedByUsername);
-            //if (assigner == null || (assigner.Role.RoleName != "Recruiter Head" && assigner.Role.RoleName != "Recruiter Lead"))
-            //{
-            //    throw new UnauthorizedAccessException("Only users with roles 'Recruiter Head' or 'Recruiter Lead' can assign job requisitions.");
-            //}
+            var jobRequisition = await _context.JobRequisitions.FindAsync(assignDto.JobRequisitionId)
+                ?? throw new ArgumentException("Job Requisition not found");
 
-            var assignee = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.AssignedTo);
-            if (assignee == null)
-                throw new ArgumentException($"Assigned user '{dto.AssignedTo}' not found.");
+            var assignedToUser = await _context.Users.FindAsync(assignDto.AssignedToUserId)
+                ?? throw new ArgumentException("Assigned user not found");
 
-            var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);
-            if (jr == null)
-                throw new ArgumentException($"Job requisition with ID {dto.JobRequisitionId} not found.");
+            var assignedByUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username == assignDto.AssignedByUsername)
+                ?? throw new ArgumentException("Assigning user not found");
 
-            //var existingAssignment = await _context.JrAssignments
-            //    .Include(a => a.AssignedByUser).ThenInclude(u => u.Role)
-            //    .FirstOrDefaultAsync(a => a.JobRequisitionId == dto.JobRequisitionId);
+            // Check if already assigned
+            var existingAssignment = await _context.JrAssignments
+                .FirstOrDefaultAsync(a => a.JobRequisitionId == assignDto.JobRequisitionId);
 
-            //if (existingAssignment != null)
-            //{
-            //    if (existingAssignment.AssignedByUser.Role.RoleName != assigner.Role.RoleName)
-            //    {
-            //        throw new InvalidOperationException($"Job requisition was assigned by a {existingAssignment.AssignedByUser.Role.RoleName}. You ({assigner.Role.RoleName}) cannot reassign it.");
-            //    }
-            //    else
-            //    {
-            //        throw new InvalidOperationException($"Job requisition with ID {dto.JobRequisitionId} is already assigned.");
-            //    }
-            //}
-
-            var assignment = new JrAssignment
+            if (existingAssignment != null && !assignDto.ForceReassign)
             {
-                JobRequisitionId = dto.JobRequisitionId,
-                AssignedTo = assignee.Id,
-                //AssignedBy = assigner.Id,
+                throw new InvalidOperationException("Job Requisition is already assigned. Use force reassignment to override.");
+            }
+
+            // If reassigned, remove previous assignment
+            if (existingAssignment != null && assignDto.ForceReassign)
+            {
+                _context.JrAssignments.Remove(existingAssignment);
+            }
+
+            var newAssignment = new JrAssignment
+            {
+                JobRequisitionId = assignDto.JobRequisitionId,
+                AssignedTo = assignDto.AssignedToUserId,
+                AssignedBy = assignedByUser.Id,
                 AssignedAt = DateTime.UtcNow
             };
 
-            _context.JrAssignments.Add(assignment);
+            _context.JrAssignments.Add(newAssignment);
             await _context.SaveChangesAsync();
 
-            return assignment;
+            return newAssignment;
         }
     }
 }

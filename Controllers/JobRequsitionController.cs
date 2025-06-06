@@ -19,7 +19,7 @@ namespace RecruitX.Controllers
     public class JobRequisitionController : ControllerBase
     {
         private readonly IUploadJobRequisitionService _jobRequisitionService;
-        //private readonly IJrAssignmentService _assignmentService;
+        private readonly IJrAssignmentService _assignmentService;
         private readonly ILogger<JobRequisitionController> _logger;
         private readonly AppDbContext _context;
 
@@ -32,7 +32,7 @@ namespace RecruitX.Controllers
             _jobRequisitionService = jobRequisitionService;
             _logger = logger;
             _context = context;
-            //_assignmentService = assignmentService;
+            _assignmentService = assignmentService;
         }
 
         [HttpPost]
@@ -153,46 +153,32 @@ namespace RecruitX.Controllers
         }
 
 
-        //[HttpPost("{id}/assign")]
-        //public async Task<IActionResult> AssignJobRequisition(int id, [FromBody] AssignJrDTO dto)
-        //{
-        //    var username = User.FindFirst(ClaimTypes.Name)?.Value;
-        //    if (string.IsNullOrEmpty(username))
-        //    {
-        //        return Unauthorized("Username claim not found. Ensure JWT contains a valid 'Name' claim.");
-        //    }
+        [HttpPost("{jrId}/assign/{userId}/by/{assignedByUsername}")]
+        public async Task<IActionResult> AssignJobRequisition(int jrId, int userId, string assignedByUsername)
+        {
+            var assignDto = new AssignJrDTO
+            {
+                JobRequisitionId = jrId,
+                AssignedToUserId = userId,
+                AssignedByUsername = assignedByUsername
+            };
 
-        //    if (id != dto.JobRequisitionId)
-        //    {
-        //        return BadRequest("Job requisition ID in route and body do not match.");
-        //    }
-
-        //    try
-        //    {
-        //        var assignment = await _assignmentService.AssignJrAsync(dto, username);
-        //        return Ok(new { message = "Job requisition assigned successfully.", assignment });
-        //    }
-        //    catch (UnauthorizedAccessException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Unauthorized role.");
-        //        return Forbid(ex.Message);
-        //    }
-        //    catch (ArgumentException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Validation error.");
-        //        return BadRequest(new { message = ex.Message });
-        //    }
-        //    catch (InvalidOperationException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Business rule violation.");
-        //        return Conflict(new { message = ex.Message });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Unexpected error during assignment.");
-        //        return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
-        //    }
-        //}
-
+            try
+            {
+                var result = await _assignmentService.AssignJobRequisitionAsync(assignDto);
+                return Ok(new { message = "Assigned successfully", assignment = result });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Internal error during assignment");
+                //return StatusCode(500, new { error = "Something went wrong." });
+                return StatusCode(500, new { error = ex.Message, stackTrace = ex.StackTrace });
+            }
+        }
     }
 }

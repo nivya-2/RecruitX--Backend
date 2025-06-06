@@ -5,9 +5,7 @@ namespace RecruitX.Interfaces
 {
     public interface IJrAssignmentService
     {
-        //Task<JrAssignment> AssignJrAsync(AssignJrDTO dto, string assignedByUsername);
-        Task<JrAssignment> AssignJrAsync(AssignJrDTO dto);
-
+        Task<JrAssignment> AssignJobRequisitionAsync(AssignJrDTO assignDto);
 
     }
 }
