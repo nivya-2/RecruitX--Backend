@@ -16,6 +16,8 @@
         public short RelevantExperienceMonths { get; set; }
         public string? CurrentEmployer { get; set; }
 
+        public long CurrentCTC { get; set; }
+
         public int? CurrentLocationId { get; set; }
         public Location? CurrentLocation { get; set; }
 

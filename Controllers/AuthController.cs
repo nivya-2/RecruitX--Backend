@@ -75,7 +75,6 @@ namespace RecruitX.Controllers
             };
         }
 
-        [Authorize]
         [HttpGet("profile")]
         public IActionResult Profile()
         {

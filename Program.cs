@@ -9,6 +9,7 @@ using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using RecruitX.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 // Allow CORS
@@ -118,7 +119,8 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
-
+builder.Services.AddHttpClient(); // Required for IHttpClientFactory
+builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
