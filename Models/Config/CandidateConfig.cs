@@ -50,6 +50,10 @@ namespace RecruitX.Models.Config
                   .HasColumnName("linkedin_url")
                   .HasMaxLength(255);
 
+            entity.Property(c => c.CurrentCTC)
+                 .HasColumnName("Current_CTC")
+                 .IsRequired();
+                 
             entity.Property(c => c.TotalExperienceYears)
                   .HasColumnName("total_experience_required_years")
                   .IsRequired();

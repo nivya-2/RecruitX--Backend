@@ -13,7 +13,7 @@ namespace RecruitX.Models.Config
 
             entity.HasKey(j => j.Id);
             entity.Property(j => j.Id).ValueGeneratedOnAdd();
-            entity.Property(e => e.Status)
+            entity.Property(e => e.JrStatus)
             .HasColumnName("status")
             .HasConversion<string>()
             .HasMaxLength(20)
@@ -45,6 +45,11 @@ namespace RecruitX.Models.Config
             entity.Property(j => j.ExpectedSalaryMinimum);
             entity.Property(j => j.ExpectedSalaryMaximum);
             entity.Property(j => j.IsClosed);
+            entity.Property(e => e.JDstatus)
+                .HasColumnName("Jd_status")
+                .HasConversion<string>()
+                .HasDefaultValue(Status.GenerateJD)
+                .IsRequired();
             entity.Property(j => j.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(j => j.CreatedBy);

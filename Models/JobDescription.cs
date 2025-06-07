@@ -1,4 +1,6 @@
-﻿namespace RecruitX.Models
+﻿using RecruitX.Data;
+
+namespace RecruitX.Models
 {
     public class JobDescription
     {
@@ -9,6 +11,7 @@
         public string? Updates { get; set; }  // Assuming JSON stored as string
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int? CreatedBy { get; set; }
+
 
         // Navigation properties (optional)
         public JobRequisition? JobRequisition { get; set; }
