@@ -114,11 +114,14 @@ builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
 
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiResponseWrapperFilter>();  // Add the filter here
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddHttpClient(); // Required for IHttpClientFactory
 builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
