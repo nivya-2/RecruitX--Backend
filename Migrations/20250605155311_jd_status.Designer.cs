@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250605155311_jd_status")]
+    partial class jd_status
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,10 +75,6 @@ namespace RecruitX.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
-
-                    b.Property<long?>("ExpectedCTC")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Expected_CTC");
 
                     b.Property<short>("ExperienceMonths")
                         .HasColumnType("smallint")
@@ -207,10 +206,6 @@ namespace RecruitX.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<long>("CurrentCTC")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Current_CTC");
 
                     b.Property<string>("CurrentEmployer")
                         .HasMaxLength(100)
@@ -391,9 +386,6 @@ namespace RecruitX.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<int?>("EmailTemplateId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("TemplateId")
                         .HasColumnType("integer")
                         .HasColumnName("template_id");
@@ -405,8 +397,6 @@ namespace RecruitX.Migrations
                         .HasColumnName("variable_name");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("EmailTemplateId");
 
                     b.HasIndex("TemplateId", "VariableName")
                         .IsUnique();
@@ -668,6 +658,13 @@ namespace RecruitX.Migrations
                         .HasColumnType("text")
                         .HasColumnName("updates");
 
+                    b.Property<string>("status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("GenerateJD")
+                        .HasColumnName("Jd_status");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedBy");
@@ -731,13 +728,6 @@ namespace RecruitX.Migrations
                     b.Property<bool>("IsClosed")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("JDstatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("GenerateJD")
-                        .HasColumnName("Jd_status");
-
                     b.Property<string>("JobDuties")
                         .IsRequired()
                         .HasColumnType("text");
@@ -749,14 +739,6 @@ namespace RecruitX.Migrations
                     b.Property<string>("JobSpecification")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("JrStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Open")
-                        .HasColumnName("status");
 
                     b.Property<int?>("LocationId")
                         .HasColumnType("integer");
@@ -792,6 +774,14 @@ namespace RecruitX.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Open")
+                        .HasColumnName("status");
 
                     b.Property<int?>("TotalExperienceYears")
                         .HasColumnType("integer");
@@ -1275,10 +1265,6 @@ namespace RecruitX.Migrations
 
             modelBuilder.Entity("RecruitX.Models.EmailTemplateVariable", b =>
                 {
-                    b.HasOne("RecruitX.Models.EmailTemplate", null)
-                        .WithMany("TemplateVariables")
-                        .HasForeignKey("EmailTemplateId");
-
                     b.HasOne("RecruitX.Models.EmailTemplate", "Template")
                         .WithMany()
                         .HasForeignKey("TemplateId")
@@ -1542,11 +1528,6 @@ namespace RecruitX.Migrations
             modelBuilder.Entity("RecruitX.Models.Department", b =>
                 {
                     b.Navigation("Employees");
-                });
-
-            modelBuilder.Entity("RecruitX.Models.EmailTemplate", b =>
-                {
-                    b.Navigation("TemplateVariables");
                 });
 
             modelBuilder.Entity("RecruitX.Models.Employee", b =>

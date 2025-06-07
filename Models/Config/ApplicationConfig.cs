@@ -33,6 +33,8 @@ namespace RecruitX.Models.Config
 
             entity.Property(e => e.SubmittedOn)
                   .HasColumnName("submitted_on");
+            entity.Property(e => e.ExpectedCTC)
+                .HasColumnName("Expected_CTC");
 
             entity.Property(e => e.CreatedBy)
                   .HasColumnName("created_by");

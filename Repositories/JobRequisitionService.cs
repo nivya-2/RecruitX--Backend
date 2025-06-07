@@ -141,7 +141,7 @@ namespace RecruitX.Repositories
                     IdealStartDate = dto.IdealStartDate,
                     CreatedAt = DateTime.UtcNow,
                     IsClosed = false,
-                    Status = JobStatus.Open
+                    JrStatus = JobStatus.Open
                 };
                 _context.JobRequisitions.Add(jobRequisition);
                 await _context.SaveChangesAsync();
