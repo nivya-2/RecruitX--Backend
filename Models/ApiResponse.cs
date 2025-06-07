@@ -6,7 +6,6 @@
         public string? Message { get; set; }
         public int StatusCode { get; set; }
         public T? Data { get; set; }
-        public object? Meta { get; set; } // Optional metadata
 
         public ApiResponse(T? data, int statusCode, string? message = null, object? meta = null)
         {
@@ -14,7 +13,6 @@
             StatusCode = statusCode;
             Message = message ?? GetDefaultMessageForStatusCode(statusCode);
             Success = statusCode >= 200 && statusCode < 300;
-            Meta = meta;
         }
 
         private static string GetDefaultMessageForStatusCode(int statusCode)
