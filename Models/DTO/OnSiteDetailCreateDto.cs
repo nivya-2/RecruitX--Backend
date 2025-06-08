@@ -41,7 +41,7 @@ namespace RecruitX.Models.DTO
         public string? InterviewProcess { get; set; } // Maps to OnSiteDetail.InterviewProcess
 
         [Required]
-        public DateTime IdealStartDate { get; set; } // Maps to OnSiteDetail.IdealStartDate
+        public DateOnly IdealStartDate { get; set; } // Maps to OnSiteDetail.IdealStartDate
 
         public bool? IsH1TransferAccepted { get; set; } // Maps to OnSiteDetail.IsH1TransferAccepted
 
