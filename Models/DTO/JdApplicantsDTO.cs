@@ -3,6 +3,7 @@
     public class JdApplicantsDTO
     {
         public int CandidateId {  get; set; }
+        public int ApplicationID {  get; set; }
         public string CandidateName { get; set; }
         public string CandidateEmail { get; set; }
         public long CandidatePhone { get; set; }
