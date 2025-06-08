@@ -11,6 +11,7 @@ using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using RecruitX.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,8 @@ builder.Logging.AddConsole(); // Add Console logger or configure as needed
 builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IGmailEmailService, GmailEmailService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
 
 // Allow CORS
 builder.Services.AddCors(options =>
@@ -133,7 +136,7 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
 

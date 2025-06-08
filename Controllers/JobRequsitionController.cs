@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using RecruitX.DTOs;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Models.DTO;
@@ -18,13 +19,13 @@ namespace RecruitX.Controllers
     [ApiController]
     public class JobRequisitionController : ControllerBase
     {
-        private readonly IUploadJobRequisitionService _jobRequisitionService;
+        private readonly IJobRequisitionService _jobRequisitionService;
         //private readonly IJrAssignmentService _assignmentService;
         private readonly ILogger<JobRequisitionController> _logger;
         private readonly AppDbContext _context;
 
         public JobRequisitionController(
-            IUploadJobRequisitionService jobRequisitionService,
+            IJobRequisitionService jobRequisitionService,
             ILogger<JobRequisitionController> logger,
             AppDbContext context,
             IJrAssignmentService assignmentService)
@@ -108,38 +109,32 @@ namespace RecruitX.Controllers
         {
             try
             {
-                var jobRequisition = await _context.JobRequisitions
-                    .Include(jr => jr.JobSkills)
-                    .FirstOrDefaultAsync(jr => jr.Id == id);
+                var success = await _jobRequisitionService.DeleteJobRequisitionAsync(id);
 
-                if (jobRequisition == null)
+                if (!success)
                 {
                     _logger.LogWarning("DeleteJobRequisition: Job Requisition with ID {Id} not found.", id);
                     return NotFound(new { message = $"Job Requisition with ID {id} not found." });
                 }
 
-                // If there are related JobSkills, remove them first due to FK constraints
-                if (jobRequisition.JobSkills != null && jobRequisition.JobSkills.Count > 0)
-                {
-                    _context.JobSkills.RemoveRange(jobRequisition.JobSkills);
-                }
-
-                _context.JobRequisitions.Remove(jobRequisition);
-                await _context.SaveChangesAsync();
-
                 _logger.LogInformation("Deleted Job Requisition with ID {Id}.", id);
-                return Ok(new { message = $"Job Requisition with ID {id} deleted successfully." });
-            }
-            catch (DbUpdateException dbEx)
-            {
-                _logger.LogError(dbEx, "DB error while deleting Job Requisition with ID {Id}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Database error occurred: {dbEx.InnerException?.Message ?? dbEx.Message}");
+                // Return 204 NoContent, which is standard for a successful DELETE with no content to return.
+                // The frontend will receive a success signal and proceed with its `next:` block.
+                return NoContent();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while deleting Job Requisition with ID {Id}.", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, $"Internal server error: {ex.Message}");
+                return StatusCode(500, new { message = $"An internal server error occurred: {ex.Message}" });
             }
+        }
+
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<JobRequisitionDto>>> GetAll()
+        {
+            var result = await _jobRequisitionService.GetAllAsync();
+            return Ok(result);
         }
 
 

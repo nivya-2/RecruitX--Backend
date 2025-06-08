@@ -73,6 +73,7 @@ namespace RecruitX.Models
         public Client Client { get; set; }
         public Location Location { get; set; }
         public Department Department { get; set; }
+        public DateTime? DeletedAt { get; set; } // ✅ Soft delete
 
         [JsonIgnore]
         public ICollection<JobSkill> JobSkills { get; set; } = new List<JobSkill>();

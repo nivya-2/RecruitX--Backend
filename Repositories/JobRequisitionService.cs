@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RecruitX.Data;
+using RecruitX.DTOs;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Models.DTO;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace RecruitX.Repositories
 {
-    public class JobRequisitionService : IUploadJobRequisitionService
+    public class JobRequisitionService : IJobRequisitionService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<JobRequisitionService> _logger;
@@ -222,5 +223,65 @@ namespace RecruitX.Repositories
                 throw;
             }
         }
+        public async Task<IEnumerable<JobRequisitionDto>> GetAllAsync()
+        {
+            var assignments = await _context.JrAssignments
+                .Select(a => a.JobRequisitionId)
+                .Distinct()
+                .ToListAsync();
+
+            return await _context.JobRequisitions
+                .AsNoTracking()
+                .Include(jr => jr.Department)
+                .Include(jr => jr.Location)
+                .Include(jr => jr.HiringManagerEmployee)
+                .Select(jr => new JobRequisitionDto
+                {
+                    Id = jr.Id,
+                    Role = jr.Role,
+                    DepartmentName = jr.Department.Name,
+                    LocationName = jr.Location != null ? jr.Location.LocationName : null,
+                    HiringManagerName = jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
+                    RequestedOn = jr.RequestedDate,
+                    IsAssigned = assignments.Contains(jr.Id)
+                })
+                .ToListAsync();
+        }
+        public async Task<bool> DeleteJobRequisitionAsync(int id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var jobRequisition = await _context.JobRequisitions
+                    .Include(jr => jr.JobSkills)
+                    .IgnoreQueryFilters() // ✅ required to find even soft-deleted
+                    .FirstOrDefaultAsync(jr => jr.Id == id);
+
+                if (jobRequisition == null)
+                {
+                    _logger.LogWarning("Attempted to delete a non-existent Job Requisition with ID {Id}", id);
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+
+                // ✅ Soft-delete only
+                jobRequisition.DeletedAt = DateTime.UtcNow;
+
+                // Optionally soft-delete JobSkills or keep them
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Soft-deleted Job Requisition with ID {Id}.", id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while deleting Job Requisition with ID {Id}", id);
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
     }
 }

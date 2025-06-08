@@ -43,6 +43,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
+        modelBuilder.Entity<JobRequisition>()
+        .HasQueryFilter(jr => jr.DeletedAt == null);
+        modelBuilder.Entity<User>().HasQueryFilter(u => u.IsActive);
 
     }
 
