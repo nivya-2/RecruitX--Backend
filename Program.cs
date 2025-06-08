@@ -17,7 +17,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Allow CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularApp", policy =>
+    options.AddPolicy("AllowAngularDev", policy =>
     {
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
