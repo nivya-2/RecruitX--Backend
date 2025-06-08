@@ -58,6 +58,23 @@ namespace RecruitX.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [HttpPut("set-recruiter-head/{userId:int}")]
+        public async Task<IActionResult> SetRecruiterHead(int userId)
+        {
+            try
+            {
+                var success = await _userService.SetRecruiterHeadAsync(userId);
+                if (!success)
+                    return NotFound(new { message = $"User with ID {userId} not found or already a Recruiter Head." });
+
+                return Ok(new { message = $"User {userId} has been set as the new Recruiter Head." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
 
     }
 }

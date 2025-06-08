@@ -136,6 +136,13 @@ namespace RecruitX.Controllers
             var result = await _jobRequisitionService.GetAllAsync();
             return Ok(result);
         }
+        [HttpGet("unassigned")]
+        public async Task<IActionResult> GetOpenJobSummaries()
+        {
+            var result = await _jobRequisitionService.GetOpenJobSummariesAsync();
+            return Ok(result);
+        }
+
 
 
         //[HttpPost("{id}/assign")]

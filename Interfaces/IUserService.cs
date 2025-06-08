@@ -8,7 +8,8 @@ namespace RecruitX.Services
     {
         Task<IEnumerable<UserDetailsDTO>> GetEmployeeDetailsAsync();
         Task<bool> SetUserInactiveAsync(int userId);
-        Task<bool> SetUserActiveAsync(int userId);   
+        Task<bool> SetUserActiveAsync(int userId);
+        Task<bool> SetRecruiterHeadAsync(int userId);
 
 
     }

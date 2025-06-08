@@ -26,6 +26,7 @@ builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IGmailEmailService, GmailEmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 
 
 // Allow CORS

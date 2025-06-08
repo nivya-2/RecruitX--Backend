@@ -11,6 +11,7 @@ namespace RecruitX.Interfaces
         Task<JobRequisition> CreateJobRequisitionAsync(UploadJrDTO dto);
         Task<IEnumerable<JobRequisitionDto>> GetAllAsync();
         Task<bool> DeleteJobRequisitionAsync(int id);
+        Task<IEnumerable<JobRequisitionSummaryDto>> GetOpenJobSummariesAsync();
 
 
     }

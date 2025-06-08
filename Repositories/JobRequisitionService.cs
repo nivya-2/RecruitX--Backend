@@ -282,6 +282,29 @@ namespace RecruitX.Repositories
                 throw;
             }
         }
+        public async Task<IEnumerable<JobRequisitionSummaryDto>> GetOpenJobSummariesAsync()
+        {
+            return await _context.JobRequisitions
+                .Where(jr =>
+                    !jr.IsClosed &&
+                    jr.DeletedAt == null &&
+                    !_context.JrAssignments.Any(ja => ja.JobRequisitionId == jr.Id)
+                )
+                .Include(jr => jr.JobSkills)
+                    .ThenInclude(js => js.Skill)
+                .Include(jr => jr.Location)
+                .Select(jr => new JobRequisitionSummaryDto
+                {
+                    Id = jr.Id,
+                    Title = jr.Role,
+                    Skills = jr.JobSkills.Select(js => js.Skill.SkillName).ToList(),
+                    OpenPositions = jr.NumPositions,
+                    PostedDate = jr.RequestedDate,
+                    Location = jr.Location != null ? jr.Location.LocationName : null
+                })
+                .AsNoTracking()
+                .ToListAsync();
+        }
 
     }
 }

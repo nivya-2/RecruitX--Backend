@@ -73,6 +73,42 @@ namespace RecruitX.Services
 
             return true;
         }
+        public async Task<bool> SetRecruiterHeadAsync(int userId)
+        {
+            var recruiterHeadRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Recruiter Head");
+            var recruiterRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Recruiter");
+
+            if (recruiterHeadRole == null || recruiterRole == null)
+                throw new InvalidOperationException("Roles not properly configured.");
+
+            var newHead = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (newHead == null)
+                return false;
+
+            if (newHead.RoleId == recruiterHeadRole.Id)
+                return false; // Already recruiter head
+
+            // Demote current recruiter head (if exists)
+            var currentHead = await _context.Users
+                .FirstOrDefaultAsync(u => u.RoleId == recruiterHeadRole.Id);
+
+            if (currentHead != null)
+            {
+                currentHead.RoleId = recruiterRole.Id;
+                _context.Users.Update(currentHead);
+            }
+
+            // Promote the new head
+            newHead.RoleId = recruiterHeadRole.Id;
+            _context.Users.Update(newHead);
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
 
 
     }
