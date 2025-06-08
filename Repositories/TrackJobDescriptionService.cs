@@ -373,7 +373,9 @@ Create a job description with ONLY these sections (do not add extra sections lik
                     // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
                     // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
                     TotalExperienceYears = app.Candidate.TotalExperienceYears,
-                    Source = app.Candidate.Source
+                    Source = app.Candidate.Source,
+                    ApplicationID=app.Id
+                    
                     // The 'Actions' property is initialized by the JdApplicantsDTO constructor
                 })
                 .ToListAsync();
@@ -383,28 +385,34 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
         public async Task<CandidateDetailsDTO?> GetCandidateDetailsByApplicationIdAsync(int applicationId)
         {
-            var result = await _context.Applications
-                .Include(a => a.Candidate)
-                .ThenInclude(c => c.CurrentLocation)
-                .Where(a => a.Id == applicationId)
-                .Select(a => new CandidateDetailsDTO
-                {
-                    CandidateID = a.Candidate.Id,
-                    CandidateName = a.Candidate.CandidateName,
-                    CandidatePhone = a.Candidate.ContactNumber,
-                    CandidateEmail = a.Candidate.Email,
-                    TotalExperience = (short)(a.Candidate.TotalExperienceYears),
-                    RelavantExperience = (short)(a.Candidate.RelevantExperienceYears),
-                    NoticePeriod = a.Candidate.NoticePeriodDays,
-                    CurrentCTC = a.Candidate.CurrentCTC,
-                    ExpectedCTC = a.ExpectedCTC,
-                    Source = a.Candidate.Source,
-                    CurrentLocation = a.Candidate.CurrentLocation != null ? a.Candidate.CurrentLocation.LocationName : "N/A",
-                    CurrentEmployer = a.Candidate.CurrentEmployer
-                })
-                .FirstOrDefaultAsync();
+            var application = await _context.Applications
+        .AsNoTracking()
+        .Include(a => a.Candidate)
+            .ThenInclude(c => c.CurrentLocation)
+        .FirstOrDefaultAsync(a => a.Id == applicationId);
 
-            return result;
+            if (application == null || application.Candidate == null)
+                return null;
+
+            var candidate = application.Candidate;
+
+            return new CandidateDetailsDTO
+            {
+                CandidateID = candidate.Id,
+                CandidateName = candidate.CandidateName,
+                CandidatePhone = candidate.ContactNumber,
+                CandidateEmail = candidate.Email,
+                TotalExperience = (short)candidate.TotalExperienceYears,
+                RelavantExperience = (short)candidate.RelevantExperienceYears,
+                NoticePeriod = candidate.NoticePeriodDays,
+                CurrentCTC = candidate.CurrentCTC,
+                ExpectedCTC = application.ExpectedCTC,
+                Source = candidate.Source,
+                CurrentLocation = candidate.CurrentLocation?.LocationName ?? "N/A",
+                CurrentEmployer = candidate.CurrentEmployer,
+                Status = application.Status.ToString(),
+                ApplicationID = application.Id
+            };
         }
 
     }
