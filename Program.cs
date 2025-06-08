@@ -11,6 +11,7 @@ using RecruitX.Repositories;
 using Microsoft.Identity.Web;
 using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using RecruitX.AI;
 using RecruitX.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -140,13 +141,19 @@ builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
 
+builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
 
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiResponseWrapperFilter>();  // Add the filter here
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+builder.Services.AddHttpClient(); // Required for IHttpClientFactory
+builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(config.GetConnectionString("DefaultConnection")));

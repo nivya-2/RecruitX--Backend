@@ -19,7 +19,7 @@ namespace RecruitX.Models
 
         public int? NumPositions { get; set; }
 
-        public JobStatus Status { get; set; }
+        public JobStatus JrStatus { get; set; }
 
         public WorkShiftTypes WorkShift { get; set; } // Changed from string to enum
 
@@ -73,6 +73,7 @@ namespace RecruitX.Models
         public Client Client { get; set; }
         public Location Location { get; set; }
         public Department Department { get; set; }
+        public Status JDstatus { get; set; }
         public DateTime? DeletedAt { get; set; } // ✅ Soft delete
 
         [JsonIgnore]

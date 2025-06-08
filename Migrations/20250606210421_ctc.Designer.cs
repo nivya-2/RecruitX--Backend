@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250606210421_ctc")]
+    partial class ctc
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -693,10 +696,6 @@ namespace RecruitX.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("deleted_at");
-
                     b.Property<int>("DepartmentId")
                         .HasColumnType("integer")
                         .HasColumnName("department_id");
@@ -965,8 +964,8 @@ namespace RecruitX.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<DateOnly>("IdealStartDate")
-                        .HasColumnType("date")
+                    b.Property<DateTime>("IdealStartDate")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("ideal_start_date");
 
                     b.Property<string>("InterviewProcess")

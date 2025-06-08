@@ -10,7 +10,7 @@ namespace RecruitX.Models
         public ApplicationStatus Status { get; set; } = ApplicationStatus.Applied;
         public DateTime? SubmittedOn { get; set; } = DateTime.UtcNow;
         public int? CreatedBy { get; set; }
-
+        public long? ExpectedCTC { get; set; }
         public short ExperienceYears { get; set; }
         public short ExperienceMonths { get; set; } // 0-11 validated in fluent API
 
