@@ -10,6 +10,7 @@ using RecruitX.Models;
 using RecruitX.Models.DTO;
 using RecruitX.Repositories;
 using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -103,6 +104,42 @@ namespace RecruitX.Controllers
 
             return Ok(jobRequisition);
         }
+        [HttpGet("info/{id}")]
+        public async Task<IActionResult> GetJobRequisitionInfoById(int id)
+        {
+            var job = await _context.JobRequisitions
+                .Include(jr => jr.Department)
+                .Include(jr => jr.Location)
+                .Include(jr => jr.HiringManagerEmployee)
+                .Include(jr => jr.CreatedByEmployee)
+                    .ThenInclude(emp => emp.User)
+                        .ThenInclude(u => u.Role)
+                .AsNoTracking()
+                .Where(jr => jr.Id == id)
+                .Select(jr => new JobRequisitionInfoDto(
+                    jr.Id,
+                    jr.Role, // JobTitle
+                    jr.Department.Name,
+                    jr.Location.LocationName,
+                    jr.NumPositions ?? 0,
+                    jr.RequestedDate,
+                    jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
+                    jr.CreatedByEmployee.FirstName + " " + jr.CreatedByEmployee.LastName,
+                    jr.CreatedByEmployee.User.Role.RoleName,
+                    jr.Qualification
+                ))
+                .FirstOrDefaultAsync();
+
+            if (job == null)
+            {
+                _logger.LogWarning("GetJobRequisitionInfoById: ID {Id} not found.", id);
+                return NotFound();
+            }
+
+            return Ok(job);
+        }
+
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteJobRequisition(int id)
@@ -145,46 +182,52 @@ namespace RecruitX.Controllers
 
 
 
-        //[HttpPost("{id}/assign")]
-        //public async Task<IActionResult> AssignJobRequisition(int id, [FromBody] AssignJrDTO dto)
-        //{
-        //    var username = User.FindFirst(ClaimTypes.Name)?.Value;
-        //    if (string.IsNullOrEmpty(username))
-        //    {
-        //        return Unauthorized("Username claim not found. Ensure JWT contains a valid 'Name' claim.");
-        //    }
+        [HttpPost("{id}/assign")]
+        public async Task<IActionResult> AssignJobRequisition(int id, [FromBody] AssignJrDTO dto)
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value
+                     ?? User.FindFirst("preferred_username")?.Value;
 
-        //    if (id != dto.JobRequisitionId)
-        //    {
-        //        return BadRequest("Job requisition ID in route and body do not match.");
-        //    }
+            if (string.IsNullOrEmpty(email))
+            {
+                return Unauthorized("No email found.");
+            }
 
-        //    try
-        //    {
-        //        var assignment = await _assignmentService.AssignJrAsync(dto, username);
-        //        return Ok(new { message = "Job requisition assigned successfully.", assignment });
-        //    }
-        //    catch (UnauthorizedAccessException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Unauthorized role.");
-        //        return Forbid(ex.Message);
-        //    }
-        //    catch (ArgumentException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Validation error.");
-        //        return BadRequest(new { message = ex.Message });
-        //    }
-        //    catch (InvalidOperationException ex)
-        //    {
-        //        _logger.LogWarning(ex, "Business rule violation.");
-        //        return Conflict(new { message = ex.Message });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Unexpected error during assignment.");
-        //        return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
-        //    }
-        //}
+            var user = _context.Users
+                .Include(u => u.Employee)
+                .FirstOrDefault(u => u.Email.ToLower() == email.ToLower()) ;
+
+            if (user == null)
+            {
+                return Unauthorized("User not found.");
+            }
+
+            try
+            {
+                var assignment = await _jobRequisitionService.AssignJrAsync(dto,user);
+                return Ok(new { message = "Job requisition assigned successfully.", assignment });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized role.");
+                return Forbid(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Validation error.");
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Business rule violation.");
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during assignment.");
+                return StatusCode(500, new { message = $"Internal server error: {ex.Message}" });
+            }
+        }
 
     }
 }

@@ -305,6 +305,66 @@ namespace RecruitX.Repositories
                 .AsNoTracking()
                 .ToListAsync();
         }
+        // Your existing service method, but now returning Task<JrAssignmentDto>
+
+        public async Task<JrAssignmentDto> AssignJrAsync(AssignJrDTO dto, User user)
+        {
+            // --- All of your existing validation and setup logic is PERFECT. Keep it. ---
+            var assignee = await _context.Users
+                // If you need the FullName for the DTO, you might need to include related data.
+                // .Include(u => u.Employee) // Example if FullName is on Employee
+                .FirstOrDefaultAsync(u => u.Id == dto.AssignedTo);
+            if (assignee == null)
+                throw new ArgumentException($"Assigned user '{dto.AssignedTo}' not found.");
+
+            var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);
+            if (jr == null)
+                throw new ArgumentException($"Job requisition with ID {dto.JobRequisitionId} not found.");
+
+            var existingAssignment = await _context.JrAssignments
+                .FirstOrDefaultAsync(a => a.JobRequisitionId == dto.JobRequisitionId);
+
+            if (existingAssignment != null)
+                throw new InvalidOperationException($"Job requisition with ID {dto.JobRequisitionId} is already assigned.");
+
+            // --- Your entity creation logic is also PERFECT. Keep it. ---
+            var assignmentEntity = new JrAssignment
+            {
+                JobRequisitionId = dto.JobRequisitionId,
+                AssignedTo = assignee.Id,
+                AssignedBy = user.Id, // Use the passed user object here
+                AssignedAt = DateTime.UtcNow
+            };
+
+            _context.JrAssignments.Add(assignmentEntity);
+            await _context.SaveChangesAsync();
+
+            // --- NEW PART: Map the saved entity to a DTO before returning ---
+            // After SaveChanges, assignmentEntity now has its generated ID.
+
+            var resultDto = new JrAssignmentDto
+            {
+                Id = assignmentEntity.Id, // The new ID from the database
+                JobRequisitionId = assignmentEntity.JobRequisitionId,
+                AssignedAt = assignmentEntity.AssignedAt,
+                AssignedBy = new UserSummaryDto
+                {
+                    Id = user.Id,
+                    FullName = user.Username // Assuming 'user' object has this data
+                },
+                AssignedTo = new UserSummaryDto
+                {
+                    Id = assignee.Id,
+                    FullName = assignee.Username // Assuming 'assignee' object has this data
+                }
+            };
+
+            // Return the DTO, not the database entity
+            return resultDto;
+        }
+
+
+
 
     }
 }

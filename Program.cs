@@ -152,6 +152,7 @@ builder.Services.AddControllers(options =>
 .AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
 });
 builder.Services.AddHttpClient(); // Required for IHttpClientFactory
 builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
