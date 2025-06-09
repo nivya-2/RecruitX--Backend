@@ -142,7 +142,7 @@ builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
 
-builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
+builder.Services.AddScoped<IJobDescriptionService, JobDescriptionService>();
 
 
 builder.Services.AddControllers(options =>
