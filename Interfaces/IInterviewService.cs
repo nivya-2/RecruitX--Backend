@@ -1,4 +1,6 @@
-﻿namespace RecruitX.Interfaces
+﻿using RecruitX.Models.DTO;
+
+namespace RecruitX.Interfaces
 {
     public class IInterviewService
     {
