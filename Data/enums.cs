@@ -27,7 +27,10 @@
         DocumentationVerified,
         SalaryApproved,
         OfferLetterAccepted,
-        Joined
+        Joined,
+
+        Rejected = 99
+
     }
     public enum InterviewStatus
     {

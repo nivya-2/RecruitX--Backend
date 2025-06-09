@@ -13,6 +13,8 @@ namespace RecruitX.Models.DTO
         public JobStatus JobStatus { get; set; }
 
         public List<string> Actions { get; set; }
+        public int FilledPositions { get; set; }
+        public int NumberOfPositions { get; set; }
 
         public TrackJdDTO()
         {

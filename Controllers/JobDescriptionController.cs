@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RecruitX.Data;
 using RecruitX.Interfaces;
 using RecruitX.Models.DTO;
+using static RecruitX.Controllers.ApplicationDetailsDTO;
 
 namespace RecruitX.Controllers
 {
@@ -15,6 +17,16 @@ namespace RecruitX.Controllers
         private readonly ITrackJdService _jobTrackingService;
         private readonly ILogger<JobDescriptionController> _logger;
         private readonly AppDbContext _context;
+        private static readonly List<ApplicationStatus> Workflow = new List<ApplicationStatus>
+    {
+        ApplicationStatus.Applied,
+        ApplicationStatus.TechnicalInterview,
+        ApplicationStatus.ManagementInterview,
+        ApplicationStatus.DocumentationVerified,
+        ApplicationStatus.SalaryApproved,
+        ApplicationStatus.OfferLetterAccepted,
+        ApplicationStatus.Joined
+    };
 
 
         public JobDescriptionController(ITrackJdService jobTrackingService, ILogger<JobDescriptionController> logger, AppDbContext context)
@@ -165,13 +177,67 @@ namespace RecruitX.Controllers
         }
 
         [HttpGet("my-job-descriptions/applicant-details/{applicationId}")]
-        public async Task<ActionResult<CandidateDetailsDTO>> GetCandidateDetails(int applicationId)
+        public async Task<ActionResult<ApplicationDetailsPageDTO>> GetApplicationPageDetails(int applicationId)
         {
-            var candidate = await _jobTrackingService.GetCandidateDetailsByApplicationIdAsync(applicationId);
-            if (candidate == null)
-                return NotFound($"No candidate found for Application ID: {applicationId}");
+            var result = await _jobTrackingService.GetApplicationPageDetailsAsync(applicationId);
+            if (result == null)
+            {
+                return NotFound();
+            }
+            return Ok (result );
+        }
 
-            return Ok(candidate);
+        [HttpPost("my-job-descriptions/applicant-details/{id}/update-status")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequestDto request)
+        {
+            var success = await _jobTrackingService.UpdateApplicationStatusAsync(id, request.Action);
+            if (!success)
+            {
+                return BadRequest("Failed to update status. The application may be in a finished state or the action is invalid.");
+            }
+            return Ok();
+        }
+
+        [HttpPost("my-job-descriptions/{jobRequisitionId:int}/bulk-add")]
+        public async Task<ActionResult<BulkAddResultDTO>> BulkAddCandidates(
+       int jobRequisitionId,
+       [FromBody] List<CandidateDetailsDTO> candidates)
+        {
+            // --- THIS IS THE CHANGE ---
+            // Get the current user's email from their authentication token (claim).
+            // Using FindFirstValue is a convenient shortcut.
+            var userEmail = User.FindFirstValue(ClaimTypes.Email);
+
+            if (string.IsNullOrWhiteSpace(userEmail))
+            {
+                // Also check for 'preferred_username' as a fallback, common in some OIDC providers
+                userEmail = User.FindFirstValue("preferred_username");
+            }
+
+            if (string.IsNullOrWhiteSpace(userEmail))
+            {
+                return Unauthorized("User email claim is missing or invalid.");
+            }
+
+            if (candidates == null || !candidates.Any())
+            {
+                return BadRequest("Candidate list cannot be empty.");
+            }
+
+            // Pass the userEmail string to the service
+            var result = await _jobTrackingService.BulkAddCandidatesAsync(jobRequisitionId, candidates, userEmail);
+
+            // The response logic remains the same
+            if (result.SuccessCount > 0 && result.FailureCount > 0)
+            {
+                return StatusCode(207, result);
+            }
+            if (result.FailureCount > 0)
+            {
+                return BadRequest(result);
+            }
+
+            return Created("", result);
         }
 
     }

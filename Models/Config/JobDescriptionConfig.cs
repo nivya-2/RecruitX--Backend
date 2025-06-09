@@ -15,7 +15,6 @@ namespace RecruitX.Models.Config
             entity.Property(e => e.Id).HasColumnName("Id");
 
             entity.Property(e => e.JobRequisitionId).HasColumnName("jr_id");
-            ;
             entity.Property(e => e.JobDesc).HasColumnName("job_desc");
             entity.Property(e => e.FilledPositions).HasColumnName("fill_positions");
             entity.Property(e => e.Updates).HasColumnName("updates");

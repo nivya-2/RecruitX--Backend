@@ -17,7 +17,7 @@ namespace RecruitX.Models
 
         public int? HiringManager { get; set; }
 
-        public int? NumPositions { get; set; }
+        public int NumPositions { get; set; }
 
         public JobStatus JrStatus { get; set; }
 
