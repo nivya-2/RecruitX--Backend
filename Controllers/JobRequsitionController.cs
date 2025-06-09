@@ -121,7 +121,7 @@ namespace RecruitX.Controllers
                     jr.Role, // JobTitle
                     jr.Department.Name,
                     jr.Location.LocationName,
-                    jr.NumPositions ?? 0,
+                    jr.NumPositions ,
                     jr.RequestedDate,
                     jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
                     jr.CreatedByEmployee.FirstName + " " + jr.CreatedByEmployee.LastName,
