@@ -63,9 +63,9 @@ namespace RecruitX.Repositories
                     {
                         current = _context.JobDescriptions
                             .Where(desc => desc.JobRequisitionId == jr.Id)
-                            .Select(desc => desc.FilledPositions ?? 0)
+                            .Select(desc => desc.FilledPositions)
                             .FirstOrDefault(),// TODO: Replace with actual FilledPositions
-                        total = jr.NumPositions ?? 0
+                        total = jr.NumPositions
                     },
                     HiringManager = $"{jr.HiringManagerEmployee?.FirstName} {jr.HiringManagerEmployee?.LastName}",
                     AssignedOn = jr.RequestedDate?.ToString("dd-MM-yyyy") ?? string.Empty,
