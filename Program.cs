@@ -114,6 +114,8 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 
 
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IAssignedJrService, AssignedJrService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
 
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
