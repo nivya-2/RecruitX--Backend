@@ -146,7 +146,7 @@ builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<IAssignedJrService, AssignedJrService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 
-builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
+//builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
