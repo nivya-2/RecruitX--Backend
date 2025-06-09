@@ -17,7 +17,7 @@ namespace RecruitX.Models
 
         public int? HiringManager { get; set; }
 
-        public int? NumPositions { get; set; }
+        public int NumPositions { get; set; }
 
         public JobStatus JrStatus { get; set; }
 
@@ -74,6 +74,7 @@ namespace RecruitX.Models
         public Location Location { get; set; }
         public Department Department { get; set; }
         public Status JDstatus { get; set; }
+        public DateTime? DeletedAt { get; set; } // ✅ Soft delete
 
         [JsonIgnore]
         public ICollection<JobSkill> JobSkills { get; set; } = new List<JobSkill>();

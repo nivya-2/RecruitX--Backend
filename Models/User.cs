@@ -16,6 +16,8 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int? EmployeeId { get; set; }
+    public Role Role { get; set; } = null!; 
+
     public Employee? Employee { get; set; }
 }
 

@@ -7,7 +7,7 @@ namespace RecruitX.Models
         public int Id { get; set; }
         public int JobRequisitionId { get; set; }
         public string? JobDesc { get; set; }
-        public int? FilledPositions { get; set; }
+        public int FilledPositions { get; set; } = 0;
         public string? Updates { get; set; }  // Assuming JSON stored as string
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int? CreatedBy { get; set; }

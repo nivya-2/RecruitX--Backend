@@ -7,7 +7,7 @@ namespace RecruitX.Models
         public int Id { get; set; }
         public int JrId { get; set; }
         public string Rate { get; set; }
-        public DateTime IdealStartDate { get; set; }
+        public DateOnly IdealStartDate { get; set; }
         public ContractType? ContractType { get; set; }
         public string ContractDuration { get; set; }
         public string ReportingTo { get; set; }

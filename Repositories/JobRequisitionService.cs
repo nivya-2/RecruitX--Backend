@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using RecruitX.Data;
+using RecruitX.DTOs;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Models.DTO;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace RecruitX.Repositories
 {
-    public class JobRequisitionService : IUploadJobRequisitionService
+    public class JobRequisitionService : IJobRequisitionService
     {
         private readonly AppDbContext _context;
         private readonly ILogger<JobRequisitionService> _logger;
@@ -222,5 +223,148 @@ namespace RecruitX.Repositories
                 throw;
             }
         }
+        public async Task<IEnumerable<JobRequisitionDto>> GetAllAsync()
+        {
+            var assignments = await _context.JrAssignments
+                .Select(a => a.JobRequisitionId)
+                .Distinct()
+                .ToListAsync();
+
+            return await _context.JobRequisitions
+                .AsNoTracking()
+                .Include(jr => jr.Department)
+                .Include(jr => jr.Location)
+                .Include(jr => jr.HiringManagerEmployee)
+                .Select(jr => new JobRequisitionDto
+                {
+                    Id = jr.Id,
+                    Role = jr.Role,
+                    DepartmentName = jr.Department.Name,
+                    LocationName = jr.Location != null ? jr.Location.LocationName : null,
+                    HiringManagerName = jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
+                    RequestedOn = jr.RequestedDate,
+                    IsAssigned = assignments.Contains(jr.Id)
+                })
+                .ToListAsync();
+        }
+        public async Task<bool> DeleteJobRequisitionAsync(int id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var jobRequisition = await _context.JobRequisitions
+                    .Include(jr => jr.JobSkills)
+                    .IgnoreQueryFilters() // ✅ required to find even soft-deleted
+                    .FirstOrDefaultAsync(jr => jr.Id == id);
+
+                if (jobRequisition == null)
+                {
+                    _logger.LogWarning("Attempted to delete a non-existent Job Requisition with ID {Id}", id);
+                    await transaction.RollbackAsync();
+                    return false;
+                }
+
+                // ✅ Soft-delete only
+                jobRequisition.DeletedAt = DateTime.UtcNow;
+
+                // Optionally soft-delete JobSkills or keep them
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Soft-deleted Job Requisition with ID {Id}.", id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while deleting Job Requisition with ID {Id}", id);
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+        public async Task<IEnumerable<JobRequisitionSummaryDto>> GetOpenJobSummariesAsync()
+        {
+            return await _context.JobRequisitions
+                .Where(jr =>
+                    !jr.IsClosed &&
+                    jr.DeletedAt == null &&
+                    !_context.JrAssignments.Any(ja => ja.JobRequisitionId == jr.Id)
+                )
+                .Include(jr => jr.JobSkills)
+                    .ThenInclude(js => js.Skill)
+                .Include(jr => jr.Location)
+                .Select(jr => new JobRequisitionSummaryDto
+                {
+                    Id = jr.Id,
+                    Title = jr.Role,
+                    Skills = jr.JobSkills.Select(js => js.Skill.SkillName).ToList(),
+                    OpenPositions = jr.NumPositions,
+                    PostedDate = jr.RequestedDate,
+                    Location = jr.Location != null ? jr.Location.LocationName : null
+                })
+                .AsNoTracking()
+                .ToListAsync();
+        }
+        // Your existing service method, but now returning Task<JrAssignmentDto>
+
+        public async Task<JrAssignmentDto> AssignJrAsync(AssignJrDTO dto, User user)
+        {
+            // --- All of your existing validation and setup logic is PERFECT. Keep it. ---
+            var assignee = await _context.Users
+                // If you need the FullName for the DTO, you might need to include related data.
+                // .Include(u => u.Employee) // Example if FullName is on Employee
+                .FirstOrDefaultAsync(u => u.Id == dto.AssignedTo);
+            if (assignee == null)
+                throw new ArgumentException($"Assigned user '{dto.AssignedTo}' not found.");
+
+            var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);
+            if (jr == null)
+                throw new ArgumentException($"Job requisition with ID {dto.JobRequisitionId} not found.");
+
+            var existingAssignment = await _context.JrAssignments
+                .FirstOrDefaultAsync(a => a.JobRequisitionId == dto.JobRequisitionId);
+
+            if (existingAssignment != null)
+                throw new InvalidOperationException($"Job requisition with ID {dto.JobRequisitionId} is already assigned.");
+
+            // --- Your entity creation logic is also PERFECT. Keep it. ---
+            var assignmentEntity = new JrAssignment
+            {
+                JobRequisitionId = dto.JobRequisitionId,
+                AssignedTo = assignee.Id,
+                AssignedBy = user.Id, // Use the passed user object here
+                AssignedAt = DateTime.UtcNow
+            };
+
+            _context.JrAssignments.Add(assignmentEntity);
+            await _context.SaveChangesAsync();
+
+            // --- NEW PART: Map the saved entity to a DTO before returning ---
+            // After SaveChanges, assignmentEntity now has its generated ID.
+
+            var resultDto = new JrAssignmentDto
+            {
+                Id = assignmentEntity.Id, // The new ID from the database
+                JobRequisitionId = assignmentEntity.JobRequisitionId,
+                AssignedAt = assignmentEntity.AssignedAt,
+                AssignedBy = new UserSummaryDto
+                {
+                    Id = user.Id,
+                    FullName = user.Username // Assuming 'user' object has this data
+                },
+                AssignedTo = new UserSummaryDto
+                {
+                    Id = assignee.Id,
+                    FullName = assignee.Username // Assuming 'assignee' object has this data
+                }
+            };
+
+            // Return the DTO, not the database entity
+            return resultDto;
+        }
+
+
+
+
     }
 }

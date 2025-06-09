@@ -92,6 +92,10 @@ namespace RecruitX.Models.Config
                 .HasConversion<string>() // Store enum as string
                 .HasMaxLength(20)
                 .IsRequired();
+            entity.Property(j => j.DeletedAt)
+    .HasColumnName("deleted_at")
+    .HasColumnType("timestamptz")
+    .IsRequired(false); // nullable
 
             //entity.HasOne(j => j.Department) 
             //      .WithMany(d => d.JobRequisitions) 

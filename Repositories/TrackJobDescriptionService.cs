@@ -1,10 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph.Models.IdentityGovernance;
 using RecruitX.AI;
 using RecruitX.Data;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Models.DTO;
+using static RecruitX.Controllers.ApplicationDetailsDTO;
 
 namespace RecruitX.Repositories
 {
@@ -13,6 +16,12 @@ namespace RecruitX.Repositories
         private readonly AppDbContext _context;
         private readonly ILogger<TrackJobDescriptionService> _logger;
         private readonly GeminiJobDescriptionGenerator _gemini;
+
+        private static readonly List<ApplicationStatus> Workflow = Enum.GetValues<ApplicationStatus>()
+          .Where(s => s != ApplicationStatus.Rejected) // Exclude Rejected from the standard path
+          .OrderBy(s => (int)s)
+          .ToList();
+
 
         public TrackJobDescriptionService(AppDbContext context, ILogger<TrackJobDescriptionService> logger, GeminiJobDescriptionGenerator gemini)
         {
@@ -216,8 +225,11 @@ Create a job description with ONLY these sections (do not add extra sections lik
                             ? result.assign.JobRequisition.Department.Name
                             : "N/A",
                         CreatedDate = DateOnly.FromDateTime(result.jd.CreatedAt),
-                        JobStatus = result.assign.JobRequisition.JrStatus
-                    })
+                        JobStatus = result.assign.JobRequisition.JrStatus,
+                        FilledPositions = result.jd.FilledPositions,
+                        NumberOfPositions = result.assign.JobRequisition.NumPositions
+           
+            })
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -268,23 +280,23 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 // Step 4: Fetch JRs assigned to user that DO NOT have a JD
                 var pendingJds = await _context.JobRequisitions
                                 .Where(jr => userAssignments.Contains(jr.Id) &&
-                                 jr.JDstatus != Status.Generated) 
+                                 jr.JDstatus != Status.Generated)
                                  .Include(jr => jr.Department)
                                  .Include(jr => jr.HiringManagerEmployee)
                                  .Include(jr => jr.Location)
                                  .Select(jr => new PendingJdDTO
                                  {
-        JobRequisitionId = jr.Id,
-        RoleTitle = jr.Role,
-        BusinessUnit = jr.Department != null ? jr.Department.Name : "N/A",
-        location = jr.Location != null ? jr.Location.LocationName : "N/A",
-        openPositions = jr.NumPositions ?? 0,
-        Actions = new List<string> { jr.JDstatus.ToString() },
-        HiringManager = jr.HiringManagerEmployee != null ?
+                                     JobRequisitionId = jr.Id,
+                                     RoleTitle = jr.Role,
+                                     BusinessUnit = jr.Department != null ? jr.Department.Name : "N/A",
+                                     location = jr.Location != null ? jr.Location.LocationName : "N/A",
+                                     openPositions = jr.NumPositions ,
+                                     Actions = new List<string> { jr.JDstatus.ToString() },
+                                     HiringManager = jr.HiringManagerEmployee != null ?
             $"{jr.HiringManagerEmployee.FirstName} {jr.HiringManagerEmployee.LastName}" : "N/A",
-        CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
-        //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
-    })
+                                     CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
+                                     //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
+                                 })
     .ToListAsync();
 
                 //_logger.LogInformation("Found {Count} pending JDs for user {UserId}", pendingJds.Count, userId);
@@ -373,7 +385,9 @@ Create a job description with ONLY these sections (do not add extra sections lik
                     // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
                     // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
                     TotalExperienceYears = app.Candidate.TotalExperienceYears,
-                    Source = app.Candidate.Source
+                    Source = app.Candidate.Source,
+                    ApplicationID = app.Id
+
                     // The 'Actions' property is initialized by the JdApplicantsDTO constructor
                 })
                 .ToListAsync();
@@ -383,29 +397,363 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
         public async Task<CandidateDetailsDTO?> GetCandidateDetailsByApplicationIdAsync(int applicationId)
         {
-            var result = await _context.Applications
-                .Include(a => a.Candidate)
-                .ThenInclude(c => c.CurrentLocation)
-                .Where(a => a.Id == applicationId)
-                .Select(a => new CandidateDetailsDTO
-                {
-                    CandidateID = a.Candidate.Id,
-                    CandidateName = a.Candidate.CandidateName,
-                    CandidatePhone = a.Candidate.ContactNumber,
-                    CandidateEmail = a.Candidate.Email,
-                    TotalExperience = (short)(a.Candidate.TotalExperienceYears),
-                    RelavantExperience = (short)(a.Candidate.RelevantExperienceYears),
-                    NoticePeriod = a.Candidate.NoticePeriodDays,
-                    CurrentCTC = a.Candidate.CurrentCTC,
-                    ExpectedCTC = a.ExpectedCTC,
-                    Source = a.Candidate.Source,
-                    CurrentLocation = a.Candidate.CurrentLocation != null ? a.Candidate.CurrentLocation.LocationName : "N/A",
-                    CurrentEmployer = a.Candidate.CurrentEmployer
-                })
-                .FirstOrDefaultAsync();
+            var application = await _context.Applications
+        .AsNoTracking()
+        .Include(a => a.Candidate)
+            .ThenInclude(c => c.CurrentLocation)
+            .Include(a => a.JobDescription)
+        .FirstOrDefaultAsync(a => a.Id == applicationId);
 
+            if (application == null || application.Candidate == null)
+                return null;
+
+            var candidate = application.Candidate;
+            var jobDescription = application.JobDescription;
+
+                JobRequisition? jobRequisition = null;
+                if (jobDescription != null)
+                {
+                    // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
+                    jobRequisition = await _context.JobRequisitions
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
+                }
+
+            return new CandidateDetailsDTO
+            {
+                CandidateID = candidate.Id,
+                CandidateName = candidate.CandidateName,
+                CandidatePhone = candidate.ContactNumber,
+                CandidateEmail = candidate.Email,
+                TotalExperience = (short)candidate.TotalExperienceYears,
+                RelavantExperience = (short)candidate.RelevantExperienceYears,
+                NoticePeriod = candidate.NoticePeriodDays,
+                CurrentCTC = candidate.CurrentCTC,
+                ExpectedCTC = application.ExpectedCTC,
+                Source = candidate.Source,
+                CurrentLocation = candidate.CurrentLocation?.LocationName ?? "N/A",
+                CurrentEmployer = candidate.CurrentEmployer,
+                Status = application.Status.ToString(),
+                ApplicationID = application.Id,
+                JrStatus = jobRequisition?.JrStatus.ToString() ?? "Unknown",
+
+            };
+
+            
+        }
+
+        public async Task<ApplicationDetailsPageDTO?> GetApplicationPageDetailsAsync(int applicationId)
+        {
+            // 1. Reuse your existing method to get candidate info
+            var candidateInfo = await GetCandidateDetailsByApplicationIdAsync(applicationId);
+            if (candidateInfo == null)
+            {
+                return null; // Application or candidate not found
+            }
+
+            // 2. Get the status history for the timeline
+            var statusHistory = await _context.ApplicationStatusHistories
+                .AsNoTracking()
+                .Where(h => h.ApplicationId == applicationId)
+                .OrderBy(h => h.ChangedAt)
+                .ToListAsync();
+
+            // 3. Build the timeline steps
+            var timelineSteps = new List<ApplicationTimelineStepDto>();
+            Enum.TryParse<ApplicationStatus>(candidateInfo.Status, out var currentStatusEnum);
+            int currentStatusIndex = Workflow.IndexOf(currentStatusEnum);
+            //foreach (var stage in Workflow)
+            //{
+            //    int stageIndex = Workflow.IndexOf(stage);
+
+            //    bool isCompleted = (currentStatusIndex >= stageIndex) || (stage == ApplicationStatus.Applied);
+
+            //    var historyEntry = statusHistory.FirstOrDefault(h => h.NewStatus == stage);
+
+            //    timelineSteps.Add(new ApplicationTimelineStepDto
+            //    {
+            //        Label = Regex.Replace(stage.ToString(), "(\\B[A-Z])", " $1"),
+            //        Completed = isCompleted,
+
+            //        // --- FIX #2: Change the date format to dd-MM-yyyy ---
+            //        Date = historyEntry?.ChangedAt.ToString("dd-MM-yyyy")
+            //    });
+            //}
+            foreach (var stage in Workflow)
+            {
+                // Find if a history record exists for this specific stage.
+                var historyEntry = statusHistory.FirstOrDefault(h => h.NewStatus == stage);
+
+                // This is the new, robust logic:
+                // A stage is "completed" if a history record for it exists in the database.
+                // We also keep your business rule that 'Applied' is always complete.
+                bool isCompleted = (historyEntry != null) || (stage == ApplicationStatus.Applied);
+
+                timelineSteps.Add(new ApplicationTimelineStepDto
+                {
+                    Label = Regex.Replace(stage.ToString(), "(\\B[A-Z])", " $1"),
+                    Completed = isCompleted, // Use our new, correct boolean
+                    Date = historyEntry?.ChangedAt.ToString("dd-MM-yyyy")
+                });
+            }
+
+            // 4. Assemble and return the final DTO
+            return new ApplicationDetailsPageDTO
+            {
+                CandidateInfo = candidateInfo,
+                StatusTimeline = timelineSteps,
+                IsProcessFinished = candidateInfo.Status == nameof(ApplicationStatus.Joined) || candidateInfo.Status == nameof(ApplicationStatus.Rejected)
+            };
+        }
+
+        public async Task<bool> UpdateApplicationStatusAsync(int applicationId, string action)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var application = await _context.Applications.FindAsync(applicationId);
+                if (application == null || application.Status == ApplicationStatus.Joined || application.Status == ApplicationStatus.Rejected)
+                {
+                    return false;
+                }
+
+                // Prevent action on a finished application
+                if (application.Status == ApplicationStatus.Joined || application.Status == ApplicationStatus.Rejected)
+                {
+                    return false;
+                }
+
+                var oldStatus = application.Status;
+                ApplicationStatus newStatus;
+
+                if (action.Equals("progress", StringComparison.OrdinalIgnoreCase))
+                {
+                    int currentIndex = Workflow.IndexOf(oldStatus);
+                    if (currentIndex < 0 || currentIndex >= Workflow.Count - 1)
+                    {
+                        return false; // Cannot progress from an unknown or final state
+                    }
+                    newStatus = Workflow[currentIndex + 1];
+                }
+                else if (action.Equals("reject", StringComparison.OrdinalIgnoreCase))
+                {
+                    newStatus = ApplicationStatus.Rejected;
+                }
+                else
+                {
+                    return false; // Invalid action
+                }
+                if (newStatus == ApplicationStatus.Joined)
+                {
+                    var jobDescription = await _context.JobDescriptions.FindAsync(application.JobDescriptionId);
+                    JobRequisition? jobRequisition = null;
+                    if (jobDescription != null)
+                    {
+                        // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
+                        jobRequisition = await _context.JobRequisitions
+                            .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
+                    }
+                    if (jobDescription != null)
+                    {
+                        // Increment the counter
+                        jobDescription.FilledPositions += 1;
+                        _logger.LogInformation(
+                            "Incremented FilledPositions for JD ID {JobDescriptionId} to {NewCount} for Application ID {ApplicationId}",
+                            jobDescription.Id, jobDescription.FilledPositions, applicationId);
+                        if (jobRequisition != null)
+                        {
+                            // Using '>=' is a safeguard in case the counts ever get out of sync.
+                            if (jobDescription.FilledPositions >= jobRequisition.NumPositions)
+                            {
+                                // 3. If full, update the Job Requisition status to Closed.
+                                jobRequisition.JrStatus = JobStatus.Closed;
+                                _logger.LogInformation(
+                                    "All positions filled for JR ID {JobRequisitionId}. Status automatically changed to Closed.",
+                                    jobRequisition.Id);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // This case indicates a data integrity issue but we shouldn't fail the whole transaction.
+                        // Just log a warning that the JD could not be found.
+                        _logger.LogWarning(
+                            "Attempted to increment FilledPositions for a joined candidate (Application ID: {ApplicationId}), but could not find the associated JobDescription with ID: {JobDescriptionId}",
+                            applicationId, application.JobDescriptionId);
+                    }
+                }
+                application.Status = newStatus;
+                _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
+                {
+                    ApplicationId = applicationId,
+                    OldStatus = oldStatus, // Assign the 'ApplicationStatus?' enum directly
+                    NewStatus = newStatus, // Assign the 'ApplicationStatus' enum directly
+                    ChangedAt = DateTime.UtcNow,
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // If any error occurred, log it and roll back the transaction
+                _logger.LogError(ex, "An error occurred while updating application status for ID {ApplicationId}. Transaction rolled back.", applicationId);
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+
+        public async Task<BulkAddResultDTO> BulkAddCandidatesAsync(int jobRequisitionId, List<CandidateDetailsDTO> candidates, string createdByUserEmail)
+        {
+            var result = new BulkAddResultDTO();
+
+            var createdByUser = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email.ToLower() == createdByUserEmail.ToLower());
+            if (createdByUser == null)
+            {
+                result.FailureCount = candidates.Count;
+                result.FailureMessages.Add($"The user '{createdByUserEmail}' was not found.");
+                return result;
+            }
+
+            var jobDescription = await _context.JobDescriptions.AsNoTracking().FirstOrDefaultAsync(jd => jd.JobRequisitionId == jobRequisitionId);
+            if (jobDescription == null)
+            {
+                result.FailureCount = candidates.Count;
+                result.FailureMessages.Add($"The job with Requisition ID {jobRequisitionId} does not exist.");
+                return result;
+            }
+
+            // 1. Get all unique emails, locations, and skills from the DTO list
+            var emailsToFind = candidates.Select(c => c.CandidateEmail.ToLower()).ToHashSet();
+            var locationStringsToFind = candidates.Select(c => c.CurrentLocation).Concat(candidates.Select(c => c.preferedLocation)).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.ToLower()).ToHashSet();
+            var skillNamesToFind = candidates.SelectMany(c => (c.skill ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Select(s => s.ToLower()).ToHashSet();
+
+            // 2. Pre-fetch existing records from the database in single queries
+            var existingCandidates = await _context.Candidates.Where(c => emailsToFind.Contains(c.Email.ToLower())).ToDictionaryAsync(c => c.Email.ToLower(), c => c);
+            var existingLocations = await _context.Locations.Where(l => locationStringsToFind.Contains(l.LocationName.ToLower())).ToDictionaryAsync(l => l.LocationName.ToLower(), l => l);
+            var existingSkills = await _context.Skills.Where(s => skillNamesToFind.Contains(s.SkillName.ToLower())).ToDictionaryAsync(s => s.SkillName.ToLower(), s => s);
+
+            // --- PROCESSING LOOP (One transaction per candidate) ---
+
+            foreach (var dto in candidates)
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // 1. Get or Create Location (using the pre-fetched cache)
+                    var currentLocation = await GetOrCreateLocationAsync(dto.CurrentLocation, existingLocations);
+                    var preferredLocation = await GetOrCreateLocationAsync(dto.preferedLocation, existingLocations);
+
+                    // 2. Get or Create Candidate (using the pre-fetched cache)
+                    if (!existingCandidates.TryGetValue(dto.CandidateEmail.ToLower(), out var candidate))
+                    {
+                        candidate = new Candidate { CreatedAt = DateTime.UtcNow };
+                        _context.Candidates.Add(candidate);
+                        existingCandidates[dto.CandidateEmail.ToLower()] = candidate; // Add to cache for this run
+                    }
+
+                    // Map/update properties
+                    candidate.Email = dto.CandidateEmail;
+                    candidate.CandidateName = dto.CandidateName;
+                    // ... map all other candidate properties ...
+                    candidate.CurrentLocation = currentLocation;
+                    candidate.PreferredLocation = preferredLocation;
+                    candidate.UpdatedAt = DateTime.UtcNow;
+                    candidate.Source = dto.Source;
+                    candidate.ProposedRole = !string.IsNullOrWhiteSpace(dto.role) ? dto.role : "Not specified";
+
+                    // 3. Create Application
+                    var application = new Application
+                    {
+                        Candidate = candidate, // Link the entity directly
+                        JobDescriptionId = jobDescription.Id,
+                        Status = ApplicationStatus.Applied,
+                        ExperienceYears = dto.TotalExperience,
+                        ExperienceMonths = 0,
+                        ExpectedCTC = dto.ExpectedCTC,
+                        CreatedBy = createdByUser.Id,
+                        SubmittedOn = DateTime.UtcNow
+                    };
+                    _context.Applications.Add(application);
+
+
+                    var initialHistoryRecord = new ApplicationStatusHistory
+                    {
+                        Application = application, // Link the entity directly
+                        OldStatus = null,
+                        NewStatus = ApplicationStatus.Applied,
+                        ChangedAt = (DateTime)application.SubmittedOn, // Use the same timestamp
+                        ChangedBy = createdByUser.Id
+                    };
+                    _context.ApplicationStatusHistories.Add(initialHistoryRecord);
+
+                    // 4. Get or Create Skills and link them
+                    if (!string.IsNullOrWhiteSpace(dto.skill))
+                    {
+                        var skillNames = dto.skill.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        foreach (var skillName in skillNames)
+                        {
+                            if (!existingSkills.TryGetValue(skillName.ToLower(), out var skill))
+                            {
+                                skill = new Skill { SkillName = skillName };
+                                _context.Skills.Add(skill);
+                                existingSkills[skillName.ToLower()] = skill; // Add to cache
+                            }
+                            _context.ApplicationSkills.Add(new ApplicationSkill { Application = application, Skill = skill });
+                        }
+                    }
+
+                    // --- BATCH SAVE ---
+                    // Save all changes for this candidate (Candidate, Application, Skills, Locations) in one go.
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    result.SuccessCount++;
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Failed to process candidate {CandidateName} ({CandidateEmail})", dto.CandidateName, dto.CandidateEmail);
+                    result.FailureCount++;
+                    result.FailureMessages.Add($"Failed to process {dto.CandidateName}: {ex.InnerException?.Message ?? ex.Message}");
+                }
+            }
             return result;
         }
+
+        // --- HELPER METHODS FOR IN-MEMORY UPSERT ---
+
+        private async Task<Location?> GetOrCreateLocationAsync(string? locationString, Dictionary<string, Location> cache)
+        {
+            if (string.IsNullOrWhiteSpace(locationString)) return null;
+
+            if (cache.TryGetValue(locationString.ToLower(), out var location))
+            {
+                return location;
+            }
+
+            var parts = locationString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var locationName = parts.Length > 0 ? parts[0] : null;
+            if (string.IsNullOrEmpty(locationName)) return null;
+
+            // This should not happen if our pre-fetch is correct, but as a safeguard:
+            var dbLocation = await _context.Locations.FirstOrDefaultAsync(l => l.LocationName.ToLower() == locationName.ToLower());
+            if (dbLocation != null)
+            {
+                cache[locationString.ToLower()] = dbLocation;
+                return dbLocation;
+            }
+
+            var country = parts.Length > 1 ? parts[1] : null;
+            var newLocation = new Location { LocationName = locationName, Country = country };
+            _context.Locations.Add(newLocation);
+            cache[locationString.ToLower()] = newLocation; // Add new entity to cache before save
+            return newLocation;
+        
+    }
 
     }
 }
