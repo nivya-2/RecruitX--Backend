@@ -35,7 +35,7 @@ namespace RecruitX.Models.DTO
 
         public DateOnly? ExpectedOnboardingDate { get; set; }
 
-        public int? NumPositions { get; set; }
+        public int NumPositions { get; set; }
 
         [Required]
         public WorkShiftTypes WorkShift { get; set; }
