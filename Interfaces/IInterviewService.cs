@@ -2,7 +2,7 @@
 
 namespace RecruitX.Interfaces
 {
-    public class IInterviewService
+    public interface IInterviewService
     {
         Task<IEnumerable<InterviewDTO>> GetAllInterviewsAsync();
         Task<IEnumerable<ToScheduleDto>> GetToScheduleInterviewsAsync();
