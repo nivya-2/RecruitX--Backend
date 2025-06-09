@@ -70,7 +70,7 @@ namespace RecruitX.Controllers
                 "Recruiter Head" => Redirect("http://localhost:4200/recruiter-head/jrs/assign-jr"),
                 "Recruiter Lead" => Redirect("http://localhost:4200/recruiter-lead/jrs/assign-jr"),
                 "Recruiter" => Redirect("http://localhost:4200/recruiter/my-jd/pendingjdgeneration"),
-                "Admin" => Redirect("http://localhost:4200/admin/add-jr"),     
+                "Admin" => Redirect("http://localhost:4200/admin/add-jr"),
                 _ => Redirect("http://localhost:4200/unauthorized")
             };
         }

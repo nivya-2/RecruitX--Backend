@@ -10,6 +10,7 @@ using Microsoft.Identity.Web;
 using RecruitX;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using RecruitX.AI;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 // Allow CORS
@@ -25,11 +26,14 @@ builder.Services.AddCors(options =>
 });
 
 // Use the SAME authentication setup as your working login
-builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"))
+    .EnableTokenAcquisitionToCallDownstreamApi()
+    .AddMicrosoftGraph(builder.Configuration.GetSection("Graph"))
+    .AddInMemoryTokenCaches();
 
- //builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
- //   .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), "Bearer"); 
+//builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+//   .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), "Bearer"); 
 
 
 // Keep your existing cookie configurations that work with login
@@ -112,7 +116,8 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
-
+// Add this line with your other services
+builder.Services.AddScoped<IInterviewPanelService, InterviewPanelService>();
 
 builder.Services.AddControllers(options =>
 {
@@ -127,6 +132,15 @@ builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHttpClient();
+
+// Or if you want a named client specifically for Graph API
+builder.Services.AddHttpClient("GraphApiClient", client =>
+{
+    client.BaseAddress = new Uri("https://graph.microsoft.com/");
+    client.DefaultRequestHeaders.Add("User-Agent", "YourApp/1.0");
+});
 
 var app = builder.Build();
 
