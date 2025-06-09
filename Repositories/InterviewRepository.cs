@@ -58,10 +58,12 @@ namespace RecruitX.Repositories
             .ThenInclude(app => app.Interviews)
         .Where(jd =>
             jd.Applications.Any(app =>
-                app.Status == ApplicationStatus.Applied ||
+                app.Status == ApplicationStatus.ManagementInterview ||
                 app.Status == ApplicationStatus.TechnicalInterview)
             &&
-            !jd.Applications.Any(app => app.Interviews.Any())
+            !jd.Applications.Any(app => app.Interviews.Any(i =>
+            i.Status==InterviewStatus.Scheduled ||
+            i.Status==InterviewStatus.PendingShortlist)) //not pendingshortlist or scheduled
         )
         .Select(jd => new ToScheduleDto
         {
