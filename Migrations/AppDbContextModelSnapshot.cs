@@ -1150,6 +1150,8 @@ namespace RecruitX.Migrations
                     b.HasIndex("EmployeeId")
                         .IsUnique();
 
+                    b.HasIndex("RoleId");
+
                     b.HasIndex("Username")
                         .IsUnique();
 
@@ -1521,7 +1523,15 @@ namespace RecruitX.Migrations
                         .HasForeignKey("User", "EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("RecruitX.Models.Role", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Employee");
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("RecruitX.Models.Application", b =>
