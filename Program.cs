@@ -150,7 +150,7 @@ builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
-
+builder.Services.AddScoped<IInterviewService, InterviewRepository>();
 builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
 
 
