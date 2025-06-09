@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250604073037_modified-emailTemplate")]
+    partial class modifiedemailTemplate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,10 +75,6 @@ namespace RecruitX.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer")
                         .HasColumnName("created_by");
-
-                    b.Property<long?>("ExpectedCTC")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Expected_CTC");
 
                     b.Property<short>("ExperienceMonths")
                         .HasColumnType("smallint")
@@ -208,10 +207,6 @@ namespace RecruitX.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<long>("CurrentCTC")
-                        .HasColumnType("bigint")
-                        .HasColumnName("Current_CTC");
-
                     b.Property<string>("CurrentEmployer")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -327,11 +322,11 @@ namespace RecruitX.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
-                        .HasColumnName("Name");
+                        .HasColumnName("name");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Departments", (string)null);
+                    b.ToTable("departments", (string)null);
                 });
 
             modelBuilder.Entity("RecruitX.Models.EmailTemplate", b =>
@@ -687,6 +682,11 @@ namespace RecruitX.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BusinessUnit")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<int?>("ClientId")
                         .HasColumnType("integer");
 
@@ -698,22 +698,13 @@ namespace RecruitX.Migrations
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamptz")
-                        .HasColumnName("deleted_at");
+                    b.Property<DateTime?>("ExpectedOnboardingDate")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer")
-                        .HasColumnName("department_id");
-
-                    b.Property<DateOnly?>("ExpectedOnboardingDate")
-                        .HasColumnType("date");
-
-                    b.Property<int?>("ExpectedSalaryMaximum")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ExpectedSalaryMinimum")
-                        .HasColumnType("integer");
+                    b.Property<string>("ExpectedSalaryRange")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<bool?>("HasClientInterview")
                         .HasColumnType("boolean");
@@ -726,21 +717,14 @@ namespace RecruitX.Migrations
                     b.Property<int?>("HiringManager")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly?>("IdealStartDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime?>("IdealStartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool?>("IsBillable")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsClosed")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("JDstatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("GenerateJD")
-                        .HasColumnName("Jd_status");
 
                     b.Property<string>("JobDuties")
                         .IsRequired()
@@ -753,14 +737,6 @@ namespace RecruitX.Migrations
                     b.Property<string>("JobSpecification")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("JrStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("Open")
-                        .HasColumnName("status");
 
                     b.Property<int?>("LocationId")
                         .HasColumnType("integer");
@@ -783,35 +759,52 @@ namespace RecruitX.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int?>("RelevantExperienceMonths")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("RelevantExperienceYears")
                         .HasColumnType("integer");
 
                     b.Property<int?>("RequestedBy")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly?>("RequestedDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime?>("RequestedDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Open")
+                        .HasColumnName("status");
+
+                    b.Property<int?>("TotalExperienceMonths")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("TotalExperienceYears")
                         .HasColumnType("integer");
 
+                    b.Property<string>("WorkModel")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("WorkShift")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ClientId");
 
                     b.HasIndex("CreatedBy");
-
-                    b.HasIndex("DepartmentId");
 
                     b.HasIndex("HiringManager");
 
@@ -970,8 +963,8 @@ namespace RecruitX.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<DateOnly>("IdealStartDate")
-                        .HasColumnType("date")
+                    b.Property<DateTime>("IdealStartDate")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("ideal_start_date");
 
                     b.Property<string>("InterviewProcess")
@@ -1154,8 +1147,6 @@ namespace RecruitX.Migrations
 
                     b.HasIndex("EmployeeId")
                         .IsUnique();
-
-                    b.HasIndex("RoleId");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -1403,12 +1394,6 @@ namespace RecruitX.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("RecruitX.Models.Department", "Department")
-                        .WithMany()
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("RecruitX.Models.Employee", "HiringManagerEmployee")
                         .WithMany()
                         .HasForeignKey("HiringManager")
@@ -1427,8 +1412,6 @@ namespace RecruitX.Migrations
                     b.Navigation("Client");
 
                     b.Navigation("CreatedByEmployee");
-
-                    b.Navigation("Department");
 
                     b.Navigation("HiringManagerEmployee");
 
@@ -1532,15 +1515,7 @@ namespace RecruitX.Migrations
                         .HasForeignKey("User", "EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("RecruitX.Models.Role", "Role")
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("Employee");
-
-                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("RecruitX.Models.Application", b =>
