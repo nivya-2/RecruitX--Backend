@@ -58,10 +58,12 @@ namespace RecruitX.Repositories
             .ThenInclude(app => app.Interviews)
         .Where(jd =>
             jd.Applications.Any(app =>
-                app.Status == ApplicationStatus.Applied ||
+                app.Status == ApplicationStatus.ManagementInterview ||
                 app.Status == ApplicationStatus.TechnicalInterview)
             &&
-            !jd.Applications.Any(app => app.Interviews.Any())
+            !jd.Applications.Any(app => app.Interviews.Any(i =>
+            i.Status==InterviewStatus.Scheduled ||
+            i.Status==InterviewStatus.PendingShortlist)) //not pendingshortlist or scheduled
         )
         .Select(jd => new ToScheduleDto
         {
@@ -102,6 +104,8 @@ namespace RecruitX.Repositories
             var interviews = await _context.Interviews
                 .Include(i => i.Application)
                     .ThenInclude(app => app.Candidate)
+             .Include(i => i.Application)
+                    .ThenInclude(app => app.JobDescription)
                 .Where(i =>
                     //i.ScheduledTo < now &&
                     i.Status == InterviewStatus.PendingShortlist // enum-based filtering
@@ -128,6 +132,7 @@ namespace RecruitX.Repositories
                 result.Add(new ToShortlistDto
                 {
                     Id = "CAN" + interview.Application.Candidate.Id.ToString("D3"),
+                    JdId = interview.Application.JobDescription.Id,
                     Name = interview.Application.Candidate.CandidateName,
                     InterviewDate = interview.ScheduledAt.ToString("dd/MM/yyyy"),
                     InterviewType = roundLabel,
