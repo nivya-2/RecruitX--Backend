@@ -11,7 +11,7 @@
         public int? CreatedBy { get; set; }
 
         // Navigation properties (optional)
-        public JobRequisition? JobRequisition { get; set; }
+        public JobRequisition? JobRequisition { get; set; } 
         public User? CreatedByUser { get; set; }
         public ICollection<Application> Applications { get; set; } = new List<Application>();
 

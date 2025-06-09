@@ -20,6 +20,7 @@ namespace RecruitX.Models
         public User? CreatedByUser { get; set; }
 
         public ICollection<ApplicationSkill> ApplicationSkills { get; set; } = new List<ApplicationSkill>();
+        public ICollection<Interview> Interviews { get; set; } = new List<Interview>();
     }
 
 

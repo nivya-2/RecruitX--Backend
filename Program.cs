@@ -77,6 +77,7 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 
 builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
+builder.Services.AddScoped<IInterviewRepository, InterviewRepository>();
 
 
 // Add controllers, authentication, authorization, etc.
