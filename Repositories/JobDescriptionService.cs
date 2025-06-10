@@ -229,7 +229,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
            
-            })
+            }).OrderByDescending(jr => jr.CreatedDate)
+
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -297,6 +298,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
                                      //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
                                  })
+                                                 .OrderByDescending(jr => jr.CreatedDate)
+
     .ToListAsync();
 
                 //_logger.LogInformation("Found {Count} pending JDs for user {UserId}", pendingJds.Count, userId);
@@ -373,9 +376,20 @@ Create a job description with ONLY these sections (do not add extra sections lik
             // if (!jdExists) {
             //     return Enumerable.Empty<JdApplicantsDTO>(); // Or throw NotFoundException
             // }
+            var associatedJdIds = await _context.JobDescriptions
+      .Where(jd => jd.JobRequisitionId == jobDescriptionId)
+      .Select(jd => jd.Id) // We only need the IDs
+      .ToListAsync();
+
+            // If no Job Descriptions are found for this requisition, no applicants can exist.
+            if (!associatedJdIds.Any())
+            {
+                _logger.LogWarning("No Job Descriptions found for Job Requisition ID {JobRequisitionId}. Returning empty applicant list.", jobDescriptionId);
+                return Enumerable.Empty<JdApplicantsDTO>();
+            }
 
             var applicantsDto = await _context.Applications
-                .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
+                .Where(app => associatedJdIds.Contains(app.JobDescriptionId) && app.Candidate != null)
                 .Select(app => new JdApplicantsDTO
                 {
                     CandidateId = app.Candidate.Id,
@@ -390,6 +404,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
                     // The 'Actions' property is initialized by the JdApplicantsDTO constructor
                 })
+                
+
                 .ToListAsync();
 
             return applicantsDto;

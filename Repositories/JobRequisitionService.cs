@@ -391,6 +391,7 @@ namespace RecruitX.Repositories
                             join hm in _context.Employees on jr.HiringManager equals hm.Id into hmGroup
                             from hm in hmGroup.DefaultIfEmpty()
                             select new { jr, ja, assignedEmp, dept, loc, hm };
+            var orderedQuery = baseQuery.OrderByDescending(x => x.ja.AssignedAt);
 
             // Filter based on role
             if (role == "Recruiter Head")
