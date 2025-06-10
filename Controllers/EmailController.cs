@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using RecruitX.Controllers.RequestDTOs;
+using RecruitX.Controllers.RequestDTOs; // Make sure this using statement is correct
 using Microsoft.EntityFrameworkCore;
+using RecruitX.Models; // Assuming models are in this namespace
 
 [ApiController]
 [Route("api/[controller]")]
@@ -10,11 +11,15 @@ public class EmailController : ControllerBase
 {
     private readonly IGmailEmailService _emailService;
     private readonly AppDbContext _context;
+    private readonly IRecruitmentEmailService _recruitmentEmailService;
 
-    public EmailController(IGmailEmailService emailService, AppDbContext context)
+
+    public EmailController(IGmailEmailService emailService, AppDbContext context, IRecruitmentEmailService recruitmentEmailService)
     {
         _emailService = emailService;
         _context = context;
+        _recruitmentEmailService = recruitmentEmailService;
+
     }
 
     [HttpPost("send-test")]
@@ -35,52 +40,25 @@ RecruitX";
         return Ok("Email sent successfully.");
     }
 
-    #region Helper Method
-    private string PopulateTemplate(string template, Dictionary<string, string?> values)
-    {
-        if (values == null) return template;
-
-        foreach (var kvp in values)
-        {
-            template = template.Replace($"{{{{{kvp.Key}}}}}", kvp.Value ?? string.Empty);
-        }
-
-        return template;
-    }
-    #endregion
-
     #region Recruitment Email Endpoints
 
     [HttpPost("send-screening")]
-    public async Task<IActionResult> SendScreeningEmail([FromBody] SendScreeningEmailRequest request)
+    public async Task<IActionResult> SendScreeningEmail([FromBody] ApplicationEmailRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var job = await _context.JobRequisitions.FindAsync(request.JobRequisitionId);
-        var candidate = await _context.Candidates.FindAsync(request.CandidateId);
-        var template = await _context.EmailTemplates
-            .FirstOrDefaultAsync(t => t.Name == "Screening Mail");
-
-        if (job == null || candidate == null || template == null)
-            return NotFound("Job, candidate, or email template not found.");
-
-        var values = new Dictionary<string, string?>
-        {
-            ["candidate_name"] = candidate.CandidateName,
-            ["job_title"] = job.Role
-            // add more if your template has other placeholders
-        };
-
-        string subject = PopulateTemplate(template.Subject, values);
-        string body = PopulateTemplate(template.Body, values);
-
-        await _emailService.SendEmailAsync(candidate.Email, subject, body, isHtml: true);
-
-        return Ok("Screening email sent.");
+        return await SendEmailFromTemplate(request.ApplicationId, "Screening Mail", "Screening email sent.");
     }
 
+    [HttpPost("send-job-offer")]
+    public async Task<IActionResult> SendJobOfferEmail([FromBody] ApplicationEmailRequest request)
+    {
+        return await SendEmailFromTemplate(request.ApplicationId, "Job Offer", "Job Offer email sent.");
+    }
 
+    [HttpPost("send-rejection")]
+    public async Task<IActionResult> RejectionEmail([FromBody] ApplicationEmailRequest request)
+    {
+        return await SendEmailFromTemplate(request.ApplicationId, "Rejection Mail", "Rejection email sent.");
+    }
 
     [HttpPost("send-interview-invitation")]
     public async Task<IActionResult> SendInterviewInvitation([FromBody] SendInterviewInvitationRequest request)
@@ -88,41 +66,43 @@ RecruitX";
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
+        // Fetch interview and all related data in one efficient query
         var interview = await _context.Interviews
-            .Include(i => i.Application)
-                .ThenInclude(a => a.Candidate)
-            .Include(i => i.Application)
-                .ThenInclude(a => a.JobDescription)
-                    .ThenInclude(jd => jd.JobRequisition)
+            .Include(i => i.Application.Candidate)
+            .Include(i => i.Application.JobDescription.JobRequisition) // Eager load everything needed
             .FirstOrDefaultAsync(i => i.Id == request.InterviewId);
 
         if (interview == null)
             return NotFound("Interview not found.");
 
-        var application = interview.Application;
-        if (application == null)
-            return NotFound("Application not found for this interview.");
+        // Safely access related data from the single query result
+        var candidate = interview.Application?.Candidate;
+        // This line is redundant because of the .Include() above, but kept to follow your format.
+        // The data is already loaded into interview.Application.JobDescription.JobRequisition
+        var job = await _context.JobRequisitions.FindAsync(interview.Application.JobDescription.JobRequisitionId);
 
-        var candidate = application.Candidate;
-        if (candidate == null)
-            return NotFound("Candidate not found for this application.");
-
-        var jobDescription = application.JobDescription;
-        if (jobDescription == null)
-            return NotFound("Job description not found for this application.");
-
-        var job = await _context.JobRequisitions
-    .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
-
-        if (job == null)
-            return NotFound($"Job requisition not found for JD ID: {jobDescription.Id} (Expected JR ID: {jobDescription.JobRequisitionId}).");
-    
+        if (candidate == null || job == null)
+            return NotFound("Associated application, candidate, or job requisition not found for this interview.");
 
         var template = await _context.EmailTemplates
             .FirstOrDefaultAsync(t => t.Name == "Interview Invitation Candidate");
 
         if (template == null)
-            return NotFound("Email template not found.");
+            return NotFound("Email template 'Interview Invitation Candidate' not found.");
+
+        // --- Start: Corrected logic for handling the meeting link ---
+
+        // 1. Initialize the details string as empty.
+        string meetingLinkDetails = string.Empty;
+
+        // 2. CRITICAL: Only populate the string IF a meeting link is provided.
+        if (!string.IsNullOrWhiteSpace(request.MeetingLink))
+        {
+            // Format it nicely for an HTML email.
+            meetingLinkDetails = $"<li><b>Meeting Link:</b> <a href=\"{request.MeetingLink}\">{request.MeetingLink}</li></p>";
+        }
+
+        // --- End: Corrected logic ---
 
         var values = new Dictionary<string, string?>
         {
@@ -130,7 +110,9 @@ RecruitX";
             ["job_title"] = job.Role,
             ["interview_date"] = interview.ScheduledAt.ToString("MMMM dd, yyyy"),
             ["interview_start_time"] = interview.ScheduledAt.ToString("hh:mm tt"),
-            ["interview_end_time"] = interview.ScheduledTo.ToString("hh:mm tt")
+            ["interview_end_time"] = interview.ScheduledTo.ToString("hh:mm tt"),
+            // This key MUST EXACTLY match the placeholder in your email template.
+            ["meeting_link_details"] = meetingLinkDetails
         };
 
         var subject = PopulateTemplate(template.Subject, values);
@@ -141,34 +123,44 @@ RecruitX";
         return Ok("Interview invitation email sent.");
     }
 
+    #endregion
 
+    #region Helper Methods
 
-
-        [HttpPost("send-job-offer")]
-    public async Task<IActionResult> SendJobOfferEmail([FromBody] SendScreeningEmailRequest request)
+    /// <summary>
+    /// A generic helper method to send emails based on an ApplicationId and a template name.
+    /// This reduces code duplication across screening, offer, and rejection endpoints.
+    /// </summary>
+    private async Task<IActionResult> SendEmailFromTemplate(int applicationId, string templateName, string successMessage)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        // Fetch the application and its related entities in one go.
+        var application = await _context.Applications
+            .Include(a => a.Candidate)
+            .Include(a => a.JobDescription)
+                .ThenInclude(jd => jd.JobRequisition)
+            .FirstOrDefaultAsync(a => a.Id == applicationId);
 
-        var job = await _context.JobRequisitions.FindAsync(request.JobRequisitionId);
-        if (job == null)
-            return NotFound($"Job Requisition not found for ID: {request.JobRequisitionId}");
+        if (application == null)
+            return NotFound($"Application with ID {applicationId} not found.");
 
-        var candidate = await _context.Candidates.FindAsync(request.CandidateId);
-        if (candidate == null)
-            return NotFound($"Candidate not found for ID: {request.CandidateId}");
+        var candidate = application.Candidate;
+        var job = await _context.JobRequisitions.FindAsync(application.JobDescription.JobRequisitionId);
+
+        if (candidate == null || job == null)
+            return NotFound("Associated candidate or job requisition not found for this application.");
 
         var template = await _context.EmailTemplates
-            .FirstOrDefaultAsync(t => t.Name == "Job Offer");
+            .FirstOrDefaultAsync(t => t.Name == templateName);
+
         if (template == null)
-            return NotFound("Email template 'Job Offer' not found.");
+            return NotFound($"Email template '{templateName}' not found.");
 
-
+        // Prepare placeholder values
         var values = new Dictionary<string, string?>
         {
             ["candidate_name"] = candidate.CandidateName,
             ["job_title"] = job.Role
-            // add more if your template has other placeholders
+            // Add more placeholders here if needed for specific templates
         };
 
         string subject = PopulateTemplate(template.Subject, values);
@@ -176,93 +168,20 @@ RecruitX";
 
         await _emailService.SendEmailAsync(candidate.Email, subject, body, isHtml: true);
 
-        return Ok("Job Offer email sent.");
+        return Ok(successMessage);
     }
 
-        [HttpPost("send-rejection")]
-    public async Task<IActionResult> RejectionEmail([FromBody] SendScreeningEmailRequest request)
+    private string PopulateTemplate(string template, Dictionary<string, string?> values)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        if (string.IsNullOrEmpty(template) || values == null) return template ?? string.Empty;
 
-        var job = await _context.JobRequisitions.FindAsync(request.JobRequisitionId);
-        if (job == null)
-            return NotFound($"Job Requisition not found for ID: {request.JobRequisitionId}");
-
-        var candidate = await _context.Candidates.FindAsync(request.CandidateId);
-        if (candidate == null)
-            return NotFound($"Candidate not found for ID: {request.CandidateId}");
-
-        var template = await _context.EmailTemplates
-            .FirstOrDefaultAsync(t => t.Name == "Rejection Mail");
-        if (template == null)
-            return NotFound("Email template 'Job Offer' not found.");
-
-
-        var values = new Dictionary<string, string?>
+        foreach (var kvp in values)
         {
-            ["candidate_name"] = candidate.CandidateName,
-            ["job_title"] = job.Role
-            // add more if your template has other placeholders
-        };
+            template = template.Replace($"{{{{{kvp.Key}}}}}", kvp.Value ?? string.Empty);
+        }
 
-        string subject = PopulateTemplate(template.Subject, values);
-        string body = PopulateTemplate(template.Body, values);
-
-        await _emailService.SendEmailAsync(candidate.Email, subject, body, isHtml: true);
-
-        return Ok("Rejection email sent.");
+        return template;
     }
-
-    //        var subject = PopulateTemplate(subjectTemplate, values);
-    //        var body = PopulateTemplate(bodyTemplate, values);
-
-    //        await _emailService.SendEmailAsync(request.ToEmail, subject, body, isHtml: true);
-    //        return Ok("Rejection email sent.");
-    //    }
-
-    //    [HttpPost("send-onboarding")]
-    //    public async Task<IActionResult> SendOnboardingEmail([FromBody] SendOnboardingEmailRequest request)
-    //    {
-    //        if (!ModelState.IsValid)
-    //            return BadRequest(ModelState);
-
-    //        const string subjectTemplate = "Welcome to {{company_name}} – Your Onboarding Details";
-    //        const string bodyTemplate = @"<p>Dear {{employee_name}},</p>
-    //<p>Welcome aboard!</p>
-    //<p>We are thrilled to have you join us as a {{role}}. Your start date is {{start_date}}.</p>
-    //<p>Please complete the following before your first day:
-    //<ul>
-    //    <li>Fill out the onboarding documents</li>
-    //    <li>Set up your company email account</li>
-    //    <li>Complete mandatory training sessions</li>
-    //</ul>
-    //</p>
-    //<p>You will be reporting to {{manager_name}} and your workstation will be at {{desk_location}}.</p>
-    //<p>For questions, contact {{hr_contact}} at {{hr_email}}.</p>
-    //<p>We look forward to working with you!</p>";
-
-    //        var values = new Dictionary<string, string?>
-    //        {
-    //            ["company_name"] = request.CompanyName,
-    //            ["employee_name"] = request.EmployeeName,
-    //            ["role"] = request.Role,
-    //            ["start_date"] = request.StartDate,
-    //            ["manager_name"] = request.ManagerName,
-    //            ["desk_location"] = request.DeskLocation,
-    //            ["hr_contact"] = request.HrContact,
-    //            ["hr_email"] = request.HrEmail,
-    //            ["application_date"] = request.ApplicationDate,
-    //            ["recruiter_name"] = request.RecruiterNameForContext,
-    //            ["recruiter_email"] = request.RecruiterEmailForContext
-    //        };
-
-    //        var subject = PopulateTemplate(subjectTemplate, values);
-    //        var body = PopulateTemplate(bodyTemplate, values);
-
-    //        await _emailService.SendEmailAsync(request.ToEmail, subject, body, isHtml: true);
-    //        return Ok("Onboarding email sent.");
-    //    }
 
     #endregion
 }

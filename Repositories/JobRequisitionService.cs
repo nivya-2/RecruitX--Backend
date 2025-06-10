@@ -243,7 +243,7 @@ namespace RecruitX.Repositories
                     DepartmentName = jr.Department.Name,
                     LocationName = jr.Location != null ? jr.Location.LocationName : null,
                     HiringManagerName = jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
-                    RequestedOn = jr.RequestedDate,
+                    RequestedOn = jr.CreatedAt,
                     IsAssigned = assignments.Contains(jr.Id)
                 })
                 .ToListAsync();
@@ -391,6 +391,7 @@ namespace RecruitX.Repositories
                             join hm in _context.Employees on jr.HiringManager equals hm.Id into hmGroup
                             from hm in hmGroup.DefaultIfEmpty()
                             select new { jr, ja, assignedEmp, dept, loc, hm };
+            var orderedQuery = baseQuery.OrderByDescending(x => x.ja.AssignedAt);
 
             // Filter based on role
             if (role == "Recruiter Head")

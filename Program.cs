@@ -17,12 +17,12 @@ using RecruitX.AI;
 using RecruitX.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Logging.ClearProviders(); // Optional, but if used, do it first
+builder.Logging.AddConsole();     // Log to the console window
+builder.Logging.AddDebug();       // Log to Visual Studio's Debug window
 var config = builder.Configuration;
 
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole(); // Add Console logger or configure as needed
 
 builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
@@ -155,6 +155,8 @@ builder.Services.AddScoped<IEmailService, GraphEmailService>();
 builder.Services.AddScoped<IInterviewService, InterviewRepository>();
 
 builder.Services.AddScoped<IJobDescriptionService, JobDescriptionService>();
+builder.Services.AddScoped<IRecruitmentEmailService, RecruitmentEmailService>();
+
 
 
 builder.Services.AddControllers(options =>
@@ -169,6 +171,7 @@ builder.Services.AddControllers(options =>
 builder.Services.AddHttpClient(); // Required for IHttpClientFactory
 builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 

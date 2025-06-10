@@ -29,6 +29,30 @@ namespace RecruitX.Models.DTO
         public string? JrStatus { get; set; } = "Open";
         public string CurrentLocation {  get; set; }
         public string CurrentEmployer { get; set; }
+        public override string ToString()
+        {
+            return $"CandidateDetailsDTO: " +
+                   $"CandidateID={CandidateID}, " +
+                   $"ApplicationID={ApplicationID}, " +
+                   $"CandidateName={CandidateName}, " +
+                   $"CandidatePhone={CandidatePhone}, " +
+                   $"CandidateEmail={CandidateEmail}, " +
+                   $"TotalExperience={TotalExperience}, " +
+                   $"RelavantExperience={RelavantExperience}, " +
+                   $"Source={Source}, " +
+                   $"SubSource={subSource}, " +
+                   $"Skill={skill}, " +
+                   $"Role={role}, " +
+                   $"NoticePeriod={NoticePeriod}, " +
+                   $"CurrentCTC={CurrentCTC}, " +
+                   $"ExpectedCTC={ExpectedCTC}, " +
+                   $"Status={Status}, " +
+                   $"JrStatus={JrStatus}, " +
+                   $"CurrentLocation={CurrentLocation}, " +
+                   $"CurrentEmployer={CurrentEmployer}, " +
+                   $"LinkedIn={linkedin}, " +
+                   $"PreferredLocation={preferedLocation}";
+        }
 
 
     }

@@ -16,6 +16,8 @@ namespace RecruitX.Repositories
         private readonly AppDbContext _context;
         private readonly ILogger<JobDescriptionService> _logger;
         private readonly GeminiJobDescriptionGenerator _gemini;
+        private readonly IRecruitmentEmailService _recruitmentEmailService;
+
 
         private static readonly List<ApplicationStatus> Workflow = Enum.GetValues<ApplicationStatus>()
           .Where(s => s != ApplicationStatus.Rejected) // Exclude Rejected from the standard path
@@ -23,11 +25,12 @@ namespace RecruitX.Repositories
           .ToList();
 
 
-        public JobDescriptionService(AppDbContext context, ILogger<JobDescriptionService> logger, GeminiJobDescriptionGenerator gemini)
+        public JobDescriptionService(AppDbContext context, ILogger<JobDescriptionService> logger, GeminiJobDescriptionGenerator gemini, IRecruitmentEmailService recruitmentEmailService)
         {
             _context = context;
             _logger = logger;
             _gemini = gemini;
+            _recruitmentEmailService = recruitmentEmailService;
 
         }
 
@@ -229,7 +232,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
            
-            })
+            }).OrderByDescending(jr => jr.CreatedDate)
+
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -297,6 +301,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
                                      //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
                                  })
+                                                 .OrderByDescending(jr => jr.CreatedDate)
+
     .ToListAsync();
 
                 //_logger.LogInformation("Found {Count} pending JDs for user {UserId}", pendingJds.Count, userId);
@@ -373,26 +379,26 @@ Create a job description with ONLY these sections (do not add extra sections lik
             // if (!jdExists) {
             //     return Enumerable.Empty<JdApplicantsDTO>(); // Or throw NotFoundException
             // }
-
             var applicantsDto = await _context.Applications
-                .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
-                .Select(app => new JdApplicantsDTO
-                {
-                    CandidateId = app.Candidate.Id,
-                    CandidateName = app.Candidate.CandidateName,
-                    CandidateEmail = app.Candidate.Email,
-                    CandidatePhone = app.Candidate.ContactNumber,
-                    // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
-                    // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
-                    TotalExperienceYears = app.Candidate.TotalExperienceYears,
-                    Source = app.Candidate.Source,
-                    ApplicationID = app.Id
+       .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
+       .Select(app => new JdApplicantsDTO
+       {
+           CandidateId = app.Candidate.Id,
+           CandidateName = app.Candidate.CandidateName,
+           CandidateEmail = app.Candidate.Email,
+           CandidatePhone = app.Candidate.ContactNumber,
+           // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
+           // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
+           TotalExperienceYears = app.Candidate.TotalExperienceYears,
+           Source = app.Candidate.Source,
+           ApplicationID = app.Id
 
-                    // The 'Actions' property is initialized by the JdApplicantsDTO constructor
-                })
-                .ToListAsync();
+           // The 'Actions' property is initialized by the JdApplicantsDTO constructor
+       })
+       .ToListAsync();
 
             return applicantsDto;
+        
         }
 
         public async Task<CandidateDetailsDTO?> GetCandidateDetailsByApplicationIdAsync(int applicationId)
@@ -525,6 +531,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 }
 
                 var oldStatus = application.Status;
+
                 ApplicationStatus newStatus;
 
                 if (action.Equals("progress", StringComparison.OrdinalIgnoreCase))
@@ -544,6 +551,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 {
                     return false; // Invalid action
                 }
+                await HandleStatusSpecificActions(application, oldStatus, newStatus);
+
                 if (newStatus == ApplicationStatus.Joined)
                 {
                     var jobDescription = await _context.JobDescriptions.FindAsync(application.JobDescriptionId);
@@ -682,6 +691,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         continue; // Skip to next candidate
                     }
 
+
+
                     var application = new Application
                     {
                         Candidate = candidate,
@@ -746,6 +757,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+                    result.SuccessfulApplicationIds.Add(application.Id);
+
                     result.SuccessCount++;
                 }
                 catch (Exception ex)
@@ -787,5 +800,41 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
         }
 
+        private async Task HandleStatusSpecificActions(Application application, ApplicationStatus oldStatus, ApplicationStatus newStatus)
+        {
+            _logger.LogInformation(
+        "HandleStatusSpecificActions called for App ID: {ApplicationId}. OldStatus: {OldStatus}, NewStatus: {NewStatus}",
+        application.Id, oldStatus, newStatus);
+            try
+            {
+                switch (newStatus)
+                {
+
+
+                    case ApplicationStatus.OfferLetterAccepted:
+                        await _recruitmentEmailService.SendJobOfferEmailAsync(application.Id);
+                        break;
+
+                    case ApplicationStatus.Rejected:
+                        await _recruitmentEmailService.SendRejectionEmailAsync(application.Id);
+                        break;
+
+                    // Add more cases as needed
+                    default:
+                        // No specific action for this status
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing status-specific actions for application {ApplicationId} from {OldStatus} to {NewStatus}",
+                    application.Id, oldStatus, newStatus);
+                _logger.LogError(ex, "FAILED to send job offer email to {CandidateEmail} for Application ID {ApplicationId}",
+                       application.Id
+        );
+
+                throw; // This will be caught by the calling method's try-catch
+            }
+        }
     }
 }
