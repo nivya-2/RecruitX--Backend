@@ -627,51 +627,66 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 return result;
             }
 
-            // 1. Get all unique emails, locations, and skills from the DTO list
             var emailsToFind = candidates.Select(c => c.CandidateEmail.ToLower()).ToHashSet();
             var locationStringsToFind = candidates.Select(c => c.CurrentLocation).Concat(candidates.Select(c => c.preferedLocation)).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.ToLower()).ToHashSet();
             var skillNamesToFind = candidates.SelectMany(c => (c.skill ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Select(s => s.ToLower()).ToHashSet();
 
-            // 2. Pre-fetch existing records from the database in single queries
             var existingCandidates = await _context.Candidates.Where(c => emailsToFind.Contains(c.Email.ToLower())).ToDictionaryAsync(c => c.Email.ToLower(), c => c);
             var existingLocations = await _context.Locations.Where(l => locationStringsToFind.Contains(l.LocationName.ToLower())).ToDictionaryAsync(l => l.LocationName.ToLower(), l => l);
             var existingSkills = await _context.Skills.Where(s => skillNamesToFind.Contains(s.SkillName.ToLower())).ToDictionaryAsync(s => s.SkillName.ToLower(), s => s);
-
-            // --- PROCESSING LOOP (One transaction per candidate) ---
 
             foreach (var dto in candidates)
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // 1. Get or Create Location (using the pre-fetched cache)
                     var currentLocation = await GetOrCreateLocationAsync(dto.CurrentLocation, existingLocations);
                     var preferredLocation = await GetOrCreateLocationAsync(dto.preferedLocation, existingLocations);
 
-                    // 2. Get or Create Candidate (using the pre-fetched cache)
                     if (!existingCandidates.TryGetValue(dto.CandidateEmail.ToLower(), out var candidate))
                     {
                         candidate = new Candidate { CreatedAt = DateTime.UtcNow };
                         _context.Candidates.Add(candidate);
-                        existingCandidates[dto.CandidateEmail.ToLower()] = candidate; // Add to cache for this run
+                        existingCandidates[dto.CandidateEmail.ToLower()] = candidate;
                     }
 
-                    // Map/update properties
+                    // --- MAPPING SECTION (Carefully completed) ---
                     candidate.Email = dto.CandidateEmail;
                     candidate.CandidateName = dto.CandidateName;
-                    // ... map all other candidate properties ...
+                    candidate.ContactNumber = dto.CandidatePhone;
+                    candidate.TotalExperienceYears = (short)dto.TotalExperience;
+                    candidate.TotalExperienceMonths = 0;
+                    candidate.RelevantExperienceYears = (short)dto.RelavantExperience;
+                    candidate.RelevantExperienceMonths = 0;
+                    candidate.CurrentEmployer = dto.CurrentEmployer;
+                    candidate.CurrentCTC = dto.CurrentCTC;
+                    candidate.NoticePeriodDays = dto.NoticePeriod;
+                    candidate.LinkedinUrl = dto.linkedin;
                     candidate.CurrentLocation = currentLocation;
                     candidate.PreferredLocation = preferredLocation;
-                    candidate.UpdatedAt = DateTime.UtcNow;
                     candidate.Source = dto.Source;
+                    candidate.SubSource = dto.subSource;
                     candidate.ProposedRole = !string.IsNullOrWhiteSpace(dto.role) ? dto.role : "Not specified";
+                    candidate.UpdatedAt = DateTime.UtcNow;
 
-                    // 3. Create Application
+
+                    var hasApplication = await _context.Applications
+    .AsNoTracking()
+    .AnyAsync(app => app.CandidateId == candidate.Id && app.JobDescriptionId == jobDescription.Id);
+
+                    if (hasApplication)
+                    {
+                        result.FailureCount++;
+                        result.FailureMessages.Add($"Application for candidate {dto.CandidateEmail} already exists for requisition {jobRequisitionId}.");
+                        await transaction.RollbackAsync();
+                        continue; // Skip to next candidate
+                    }
+
                     var application = new Application
                     {
-                        Candidate = candidate, // Link the entity directly
+                        Candidate = candidate,
                         JobDescriptionId = jobDescription.Id,
-                        Status = ApplicationStatus.Applied,
+                        Status = ApplicationStatus.TechnicalInterview,
                         ExperienceYears = dto.TotalExperience,
                         ExperienceMonths = 0,
                         ExpectedCTC = dto.ExpectedCTC,
@@ -680,35 +695,55 @@ Create a job description with ONLY these sections (do not add extra sections lik
                     };
                     _context.Applications.Add(application);
 
-
                     var initialHistoryRecord = new ApplicationStatusHistory
                     {
-                        Application = application, // Link the entity directly
+                        Application = application,
                         OldStatus = null,
-                        NewStatus = ApplicationStatus.Applied,
-                        ChangedAt = (DateTime)application.SubmittedOn, // Use the same timestamp
+                        NewStatus = ApplicationStatus.TechnicalInterview,
+                        ChangedAt = (DateTime)application.SubmittedOn,
                         ChangedBy = createdByUser.Id
                     };
                     _context.ApplicationStatusHistories.Add(initialHistoryRecord);
 
-                    // 4. Get or Create Skills and link them
                     if (!string.IsNullOrWhiteSpace(dto.skill))
                     {
-                        var skillNames = dto.skill.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        var skillNames = dto.skill
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(s => s.ToLower())
+                            .ToList();
+
+                        var alreadyLinkedSkillNames = new HashSet<string>();
+
+                        // Extract skills already tracked in EF (Application just added, so we rely on in-memory)
+                        foreach (var skillEntry in _context.ApplicationSkills.Local.Where(a => a.Application == application))
+                        {
+                            alreadyLinkedSkillNames.Add(skillEntry.Skill.SkillName.ToLower());
+                        }
+
                         foreach (var skillName in skillNames)
                         {
-                            if (!existingSkills.TryGetValue(skillName.ToLower(), out var skill))
+                            if (!existingSkills.TryGetValue(skillName, out var skill))
                             {
                                 skill = new Skill { SkillName = skillName };
                                 _context.Skills.Add(skill);
-                                existingSkills[skillName.ToLower()] = skill; // Add to cache
+                                existingSkills[skillName] = skill;
                             }
-                            _context.ApplicationSkills.Add(new ApplicationSkill { Application = application, Skill = skill });
+
+                            // Prevent duplicate ApplicationSkill
+                            if (alreadyLinkedSkillNames.Contains(skill.SkillName.ToLower()))
+                                continue;
+
+                            _context.ApplicationSkills.Add(new ApplicationSkill
+                            {
+                                Application = application,
+                                Skill = skill
+                            });
+
+                            alreadyLinkedSkillNames.Add(skill.SkillName.ToLower());
                         }
                     }
 
-                    // --- BATCH SAVE ---
-                    // Save all changes for this candidate (Candidate, Application, Skills, Locations) in one go.
+
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
                     result.SuccessCount++;
@@ -723,9 +758,6 @@ Create a job description with ONLY these sections (do not add extra sections lik
             }
             return result;
         }
-
-        // --- HELPER METHODS FOR IN-MEMORY UPSERT ---
-
         private async Task<Location?> GetOrCreateLocationAsync(string? locationString, Dictionary<string, Location> cache)
         {
             if (string.IsNullOrWhiteSpace(locationString)) return null;
@@ -752,8 +784,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
             _context.Locations.Add(newLocation);
             cache[locationString.ToLower()] = newLocation; // Add new entity to cache before save
             return newLocation;
-        
-    }
+
+        }
 
     }
 }
