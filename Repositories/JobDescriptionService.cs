@@ -11,10 +11,10 @@ using static RecruitX.Controllers.ApplicationDetailsDTO;
 
 namespace RecruitX.Repositories
 {
-    public class TrackJobDescriptionService : ITrackJdService
+    public class JobDescriptionService : IJobDescriptionService
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<TrackJobDescriptionService> _logger;
+        private readonly ILogger<JobDescriptionService> _logger;
         private readonly GeminiJobDescriptionGenerator _gemini;
 
         private static readonly List<ApplicationStatus> Workflow = Enum.GetValues<ApplicationStatus>()
@@ -23,7 +23,7 @@ namespace RecruitX.Repositories
           .ToList();
 
 
-        public TrackJobDescriptionService(AppDbContext context, ILogger<TrackJobDescriptionService> logger, GeminiJobDescriptionGenerator gemini)
+        public JobDescriptionService(AppDbContext context, ILogger<JobDescriptionService> logger, GeminiJobDescriptionGenerator gemini)
         {
             _context = context;
             _logger = logger;
