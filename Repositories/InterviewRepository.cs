@@ -157,23 +157,6 @@ namespace RecruitX.Repositories
             return result;
         }
 
-        //public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
-        //{
-        //    return await _context.Interviews
-        //        .Where(i => i.Application.JobDescriptionId == jdId)
-        //        .Select(i => new CandidateDTO
-        //        {
-        //            Id = i.Application.Candidate.Id,
-        //            CandidateName = i.Application.Candidate.CandidateName,
-        //            MobileNumber = i.Application.Candidate.ContactNumber,
-        //            Email = i.Application.Candidate.Email,
-        //            CurrentEmployer = i.Application.Candidate.CurrentEmployer ?? string.Empty,
-        //            TotalExperience = $"{i.Application.Candidate.TotalExperienceYears} years",
-        //            RelevantExperience = $"{i.Application.Candidate.RelevantExperienceYears} years",
-        //            Stage = $"{(i.IsTechnicalRound ? "Technical" : "Management")} {i.InterviewCount}"
-        //        })
-        //        .ToListAsync();
-        //}
         public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
         {
             var latestInterviews = await _context.Interviews
