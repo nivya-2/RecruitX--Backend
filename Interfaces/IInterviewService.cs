@@ -7,6 +7,7 @@ namespace RecruitX.Interfaces
         Task<IEnumerable<InterviewDTO>> GetAllInterviewsAsync();
         Task<IEnumerable<ToScheduleDto>> GetToScheduleInterviewsAsync();
         Task<IEnumerable<ToShortlistDto>> GetInterviewsToShortlistAsync();
+        Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId);
 
     }
 }

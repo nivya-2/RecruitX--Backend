@@ -142,5 +142,17 @@ namespace RecruitX.Repositories
 
             return result;
         }
+
+        public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
+        {
+            return await _context.Applications
+                .Where(app => app.JobDescriptionId == jdId)
+                .Select(app => new CandidateDTO
+                {
+                    Id = app.CandidateId,
+                    CandidateName = app.Candidate.CandidateName
+                })
+                .ToListAsync();
+        }
     }
 }
