@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.Graph.Models.TermStore;
 using RecruitX.Data;
 
 namespace RecruitX.Models;
@@ -13,6 +14,8 @@ public class Interview
     public List<InterviewPanel> InterviewPanels { get; set; } = new();
 
     public Boolean IsTechnicalRound { get; set; }
+
+    public List<String> InterviewersMail { get; set; }
 
     public DateTime ScheduledAt { get; set; }
     public DateTime ScheduledTo { get; set; }

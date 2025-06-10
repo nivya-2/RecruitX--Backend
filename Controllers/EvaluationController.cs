@@ -54,7 +54,7 @@ namespace RecruitX.Controllers
             }
         }
         [HttpGet("view/{interviewId:int}")]
-        [Authorize] // This specific endpoint is protected.
+        //[Authorize] // This specific endpoint is protected.
         public async Task<IActionResult> GetSubmittedEvaluation(int interviewId)
         {
             try

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace RecruitX.Models.DTO
 {
@@ -37,6 +38,8 @@ namespace RecruitX.Models.DTO
         public string InterviewLevel { get; set; }
         public string SubmittedByEmail { get; set; }
         public DateTime SubmittedAt { get; set; }
+        [JsonPropertyName("feedbackJson")]
+
         public string FeedbackJson { get; set; } // The raw JSON feedback
     }
 }
