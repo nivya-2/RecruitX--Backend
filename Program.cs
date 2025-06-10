@@ -27,6 +27,7 @@ builder.Services.Configure<SmtpSettings>(
 builder.Services.AddScoped<IGmailEmailService, GmailEmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IInterviewPanelService, InterviewPanelService>();
 
 
 // Allow CORS
@@ -34,7 +35,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", 
+                "https://localhost:7144")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
