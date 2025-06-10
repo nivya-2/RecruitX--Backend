@@ -13,8 +13,8 @@ namespace RecruitX.Interfaces
         Task<bool> DeleteJobRequisitionAsync(int id);
         Task<IEnumerable<JobRequisitionSummaryDto>> GetOpenJobSummariesAsync();
         Task<JrAssignmentDto> AssignJrAsync(AssignJrDTO dto, User user);
-        Task<IEnumerable<TrackJobRequisitionDTO>> GetAllAssignedJobRequisitionsAsync();
-        Task<IEnumerable<TrackJobRequisitionDTO>> GetTrackedJrsForLeadAsync(string leadUserEmail);
+        Task<IEnumerable<TrackJobRequisitionDTO>> GetAssignedJobRequisitionsAsync(string userEmail);
+
     }
 
 }

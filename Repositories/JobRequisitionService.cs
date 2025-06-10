@@ -363,114 +363,72 @@ namespace RecruitX.Repositories
             return resultDto;
         }
 
-        public async Task<IEnumerable<TrackJobRequisitionDTO>> GetAllAssignedJobRequisitionsAsync()
+        public async Task<IEnumerable<TrackJobRequisitionDTO>> GetAssignedJobRequisitionsAsync(string userEmail)
         {
-            _logger.LogInformation("Fetching all assigned job requisitions for Head role.");
+            // Get user and role
+            var user = await _context.Users
+                .Include(u => u.Employee)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == userEmail.ToLower());
 
-            var query = _context.JrAssignments
-                .AsNoTracking()
-                // Use GroupJoin for a reliable LEFT JOIN to JobDescriptions
-                .GroupJoin(
-                    _context.JobDescriptions,
-                    assignment => assignment.JobRequisitionId, // Key from left table (JrAssignment)
-                    jd => jd.JobRequisitionId,                 // Key from right table (JobDescription)
-                    (assignment, jds) => new { assignment, jds } // Intermediate result
-                )
-                .SelectMany(
-                    temp => temp.jds.DefaultIfEmpty(), // This flattens the group, making it a LEFT JOIN
-                    (parent, jd) => new // Project into a final anonymous type
-                    {
-                        Assignment = parent.assignment,
-                        JobDescription = jd // jd will be null if no match was found
-                    }
-                )
-                // Eagerly load all related entities needed for the DTO
-                .Include(a => a.Assignment.JobRequisition).ThenInclude(jr => jr.Department)
-                .Include(a => a.Assignment.JobRequisition).ThenInclude(jr => jr.Location)
-                .Include(a => a.Assignment.JobRequisition).ThenInclude(jr => jr.HiringManagerEmployee)
-                .Include(a => a.Assignment.AssignedToUser);
+            if (user == null)
+                return new List<TrackJobRequisitionDTO>();
 
-            // Final projection into the DTO
-            var result = await query
-                .Select(data => new TrackJobRequisitionDTO
+            var role = await _context.Roles
+                .Where(r => r.Id == user.RoleId)
+                .Select(r => r.RoleName)
+                .FirstOrDefaultAsync();
+
+            // Base query: assignments joined with JobRequisition and related info
+            var baseQuery = from jr in _context.JobRequisitions
+                            join ja in _context.JrAssignments on jr.Id equals ja.JobRequisitionId
+                            join assignedEmp in _context.Employees on ja.AssignedTo equals assignedEmp.Id
+                            join dept in _context.Departments on jr.DepartmentId equals dept.Id into deptGroup
+                            from dept in deptGroup.DefaultIfEmpty()
+                            join loc in _context.Locations on jr.LocationId equals loc.Id into locGroup
+                            from loc in locGroup.DefaultIfEmpty()
+                            join hm in _context.Employees on jr.HiringManager equals hm.Id into hmGroup
+                            from hm in hmGroup.DefaultIfEmpty()
+                            select new { jr, ja, assignedEmp, dept, loc, hm };
+
+            // Filter based on role
+            if (role == "Recruiter Head")
+            {
+                // Head sees all assigned JRs
+                // no additional filter needed
+            }
+            else if (role == "Recruiter Lead")
+            {
+                // Lead sees only JRs he assigned
+                baseQuery = baseQuery.Where(x => x.ja.AssignedBy == user.Employee.Id);
+            }
+            else
+            {
+                // Other roles see nothing
+                return new List<TrackJobRequisitionDTO>();
+            }
+
+            // Project to DTO
+            var result = await baseQuery
+                .Select(x => new TrackJobRequisitionDTO
                 {
-                    Id = data.Assignment.JobRequisition.Id,
-                    Role = data.Assignment.JobRequisition.Role,
-                    DepartmentName = data.Assignment.JobRequisition.Department != null ? data.Assignment.JobRequisition.Department.Name : "N/A",
-                    LocationName = data.Assignment.JobRequisition.Location != null ? data.Assignment.JobRequisition.Location.LocationName : "N/A",
-                    HiringManagerName = data.Assignment.JobRequisition.HiringManagerEmployee != null ? $"{data.Assignment.JobRequisition.HiringManagerEmployee.FirstName} {data.Assignment.JobRequisition.HiringManagerEmployee.LastName}".Trim() : "N/A",
-                    status = data.Assignment.JobRequisition.JrStatus.ToString(),
-                    NumPositions = data.Assignment.JobRequisition.NumPositions,
-                    FilledPositions = data.JobDescription != null ? data.JobDescription.FilledPositions : 0, // Safely access JobDescription
-                    assignedTo = data.Assignment.AssignedToUser != null ? data.Assignment.AssignedToUser.Username : "Unassigned",
-                    assignedOn = DateOnly.FromDateTime(data.Assignment.AssignedAt),
-                    CloseBy = data.Assignment.JobRequisition.IdealStartDate.HasValue ,
+                    Id = x.jr.Id,
+                    Role = x.jr.Role ?? string.Empty,
+                    DepartmentName = x.dept != null ? x.dept.Name : "N/A",
+                    LocationName = x.loc != null ? x.loc.LocationName : "N/A",
+                    HiringManagerName = x.hm != null ? (x.hm.FirstName + " " + x.hm.LastName) : "N/A",
+                    status = x.jr.JrStatus.ToString(),
+                    NumPositions = x.jr.NumPositions,
+                    FilledPositions = _context.JobDescriptions
+                                        .Where(jd => jd.JobRequisitionId == x.jr.Id)
+                                        .Sum(jd => jd.FilledPositions),
+                    assignedTo = x.assignedEmp.FirstName + " " + x.assignedEmp.LastName,
+                    assignedOn = DateOnly.FromDateTime(x.ja.AssignedAt),
+                    CloseBy = x.jr.ExpectedOnboardingDate
                 })
                 .ToListAsync();
 
             return result;
         }
-
-        public async Task<IEnumerable<TrackJobRequisitionDTO>> GetTrackedJrsForLeadAsync(string leadUserEmail)
-        {
-            _logger.LogInformation("Fetching tracked job requisitions for lead: {LeadEmail}", leadUserEmail);
-
-            var lead = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email.ToLower() == leadUserEmail.ToLower());
-            if (lead == null)
-            {
-                _logger.LogWarning("Lead with email {LeadEmail} not found.", leadUserEmail);
-                return Enumerable.Empty<TrackJobRequisitionDTO>();
-            }
-
-            var recruiterIds = await _context.LeadToRecruiters
-                .Where(ltr => ltr.Id == lead.Id)
-                .Select(ltr => ltr.RecruiterId)
-                .ToListAsync();
-
-            if (!recruiterIds.Any())
-            {
-                _logger.LogInformation("Lead ID {LeadId} has no recruiters assigned. Returning empty list.", lead.Id);
-                return Enumerable.Empty<TrackJobRequisitionDTO>();
-            }
-
-            // The query structure is identical to the one above, with an added .Where clause
-            var query = _context.JrAssignments
-                .AsNoTracking()
-                .Where(a => recruiterIds.Contains(a.AssignedTo)) // <-- Filter by the lead's team
-                .GroupJoin(
-                    _context.JobDescriptions,
-                    assignment => assignment.JobRequisitionId,
-                    jd => jd.JobRequisitionId,
-                    (assignment, jds) => new { assignment, jds }
-                )
-                .SelectMany(
-                    temp => temp.jds.DefaultIfEmpty(),
-                    (parent, jd) => new { parent.assignment, JobDescription = jd }
-                )
-                .Include(a => a.assignment.JobRequisition).ThenInclude(jr => jr.Department)
-                .Include(a => a.assignment.JobRequisition).ThenInclude(jr => jr.Location)
-                .Include(a => a.assignment.JobRequisition).ThenInclude(jr => jr.HiringManagerEmployee)
-                .Include(a => a.assignment.AssignedToUser);
-
-            var result = await query
-                .Select(data => new TrackJobRequisitionDTO
-                {
-                    Id = data.assignment.JobRequisition.Id,
-                    Role = data.assignment.JobRequisition.Role,
-                    DepartmentName = data.assignment.JobRequisition.Department != null ? data.assignment.JobRequisition.Department.Name : "N/A",
-                    LocationName = data.assignment.JobRequisition.Location != null ? data.assignment.JobRequisition.Location.LocationName : "N/A",
-                    HiringManagerName = data.assignment.JobRequisition.HiringManagerEmployee != null ? $"{data.assignment.JobRequisition.HiringManagerEmployee.FirstName} {data.assignment.JobRequisition.HiringManagerEmployee.LastName}".Trim() : "N/A",
-                    status = data.assignment.JobRequisition.JrStatus.ToString(),
-                    NumPositions = data.assignment.JobRequisition.NumPositions,
-                    FilledPositions = data.JobDescription != null ? data.JobDescription.FilledPositions : 0,
-                    assignedTo = data.assignment.AssignedToUser != null ? data.assignment.AssignedToUser.Username : "Unassigned",
-                    assignedOn = DateOnly.FromDateTime(data.assignment.AssignedAt),
-                    CloseBy = data.assignment.JobRequisition.IdealStartDate.HasValue ? (data.assignment.JobRequisition.IdealStartDate.Value) : default
-                })
-                .ToListAsync();
-
-            return result;
-        }
-
     }
-}
+
+  }

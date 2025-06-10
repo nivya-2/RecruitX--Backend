@@ -230,50 +230,30 @@ namespace RecruitX.Controllers
         }
 
 
-        [HttpGet("track-JR")]
-        public async Task<ActionResult<IEnumerable<TrackJobRequisitionDTO>>> TrackAllAssigned()
+        [HttpGet("assigned-by-me")]
+        public async Task<ActionResult<List<TrackJobRequisitionDTO>>> GetAssignedJobRequisitions()
         {
             try
             {
-                // Get the logged-in user's role and email from their token claims
-                var userRole = User.FindFirstValue(ClaimTypes.Role);
-                var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("preferred_username");
+                // Get logged-in user email from claims
+                var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                    ?? User.FindFirst("preferred_username")?.Value;
 
-                if (string.IsNullOrWhiteSpace(userEmail))
-                {
-                    _logger.LogWarning("Request received for tracking dashboard but user email claim was not found.");
-                    return Unauthorized("User email claim not found in token.");
-                }
+                if (string.IsNullOrEmpty(email))
+                    return Unauthorized("User email not found in token.");
 
-                _logger.LogInformation("User {Email} with role {Role} is requesting the tracking dashboard.", userEmail, userRole ?? "N/A");
+                var assignedJRs = await _jobRequisitionService.GetAssignedJobRequisitionsAsync(email);
 
-                IEnumerable<TrackJobRequisitionDTO> result;
-
-                // --- ROLE-BASED DATA FETCHING LOGIC ---
-                if (userRole == "Head") // Assuming the role name is exactly "Head"
-                {
-                    // If user is a Head, get all assigned JRs in the system
-                    result = await _jobRequisitionService.GetAllAssignedJobRequisitionsAsync();
-                }
-                else if (userRole == "Lead") // Assuming the role name is "Lead"
-                {
-                    // If user is a Lead, get JRs for their team only
-                    result = await _jobRequisitionService.GetTrackedJrsForLeadAsync(userEmail);
-                }
-                else
-                {
-                    // For any other role, return an empty list as a safe default.
-                    // This could be modified to show JRs assigned to a standard "Recruiter" if needed.
-                    _logger.LogInformation("User {Email} has role '{Role}', returning empty dashboard.", userEmail, userRole);
-                    result = Enumerable.Empty<TrackJobRequisitionDTO>();
-                }
-
-                return Ok(result);
+                return Ok(assignedJRs);
             }
-            catch (System.Exception ex)
+            catch (UnauthorizedAccessException ex)
             {
-                _logger.LogError(ex, "An unexpected error occurred while fetching the tracking dashboard.");
-                return StatusCode(500, "An internal server error occurred.");
+                return Unauthorized(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Log exception here if needed
+                return StatusCode(500, "An error occurred while fetching assigned job requisitions.");
             }
         }
     }

@@ -6,11 +6,11 @@
 
         public string Role { get; set; } = string.Empty;   // Job Title
 
-        public string? DepartmentName { get; set; }        // Delivery Unit
+        public string DepartmentName { get; set; }        // Delivery Unit
 
-        public string? LocationName { get; set; }          // Location
+        public string LocationName { get; set; }          // Location
 
-        public string? HiringManagerName { get; set; }     // Hiring Manager
+        public string HiringManagerName { get; set; }     // Hiring Manager
 
        public string status { get; set; }
 
@@ -19,6 +19,6 @@
 
         public string assignedTo {  get; set; }
         public DateOnly assignedOn { get; set; }
-        public DateOnly CloseBy { get; set; }
+        public DateOnly? CloseBy { get; set; }
     }
 }
