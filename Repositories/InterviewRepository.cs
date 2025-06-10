@@ -157,12 +157,14 @@ namespace RecruitX.Repositories
             return result;
         }
 
-        public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
+        public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jrId)
         {
             var latestInterviews = await _context.Interviews
-                .Where(i => i.Application.JobDescriptionId == jdId)
                 .Include(i => i.Application)
                     .ThenInclude(a => a.Candidate)
+                .Include(i => i.Application)
+                    .ThenInclude(a => a.JobDescription)
+                .Where(i => i.Application.JobDescription.JobRequisitionId == jrId)
                 .OrderByDescending(i => i.CreatedAt)
                 .ToListAsync();
 
@@ -172,12 +174,12 @@ namespace RecruitX.Repositories
                 .Select(i => new CandidateDTO
                 {
                     Id = i.Application.Candidate.Id,
-                    CandidateName = i.Application.Candidate.CandidateName,
-                    MobileNumber = i.Application.Candidate.ContactNumber,
+                    Name = i.Application.Candidate.CandidateName,
+                    MobNumber = i.Application.Candidate.ContactNumber,
                     Email = i.Application.Candidate.Email,
                     CurrentEmployer = i.Application.Candidate.CurrentEmployer ?? string.Empty,
-                    TotalExperience = $"{i.Application.Candidate.TotalExperienceYears} years",
-                    RelevantExperience = $"{i.Application.Candidate.RelevantExperienceYears} years",
+                    TotalExp = $"{i.Application.Candidate.TotalExperienceYears} years",
+                    RelevantExp = $"{i.Application.Candidate.RelevantExperienceYears} years",
                     Stage = $"{(i.IsTechnicalRound ? "Technical" : "Management")} {i.InterviewCount}"
                 })
                 .ToList();

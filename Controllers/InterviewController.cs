@@ -35,10 +35,10 @@ namespace RecruitX.Controllers
             return Ok(result);
         }
 
-        [HttpGet("schedule/{jdId}")]
-        public async Task<IActionResult> GetCandidatesByJD(int jdId)
+        [HttpGet("schedule/{jrId}")]
+        public async Task<IActionResult> GetCandidatesByJD(int jrId)
         {
-            var candidates = await _interviewRepo.GetCandidatesByJobDescriptionIdAsync(jdId);
+            var candidates = await _interviewRepo.GetCandidatesByJobDescriptionIdAsync(jrId);
             return Ok(candidates);
         }
     }
