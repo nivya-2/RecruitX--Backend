@@ -37,6 +37,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PanelToGroup> PanelToGroups { get; set; }
 
     public DbSet<Role> Roles { get; set; }
+    public DbSet<PanelEvaluationLink> PanelEvaluationLinks { get; set; }
+    public DbSet<PanelEvaluationResponse> PanelEvaluationResponses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

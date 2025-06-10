@@ -152,7 +152,7 @@ builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
 builder.Services.AddScoped<IInterviewService, InterviewRepository>();
 builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
-
+builder.Services.AddScoped<IEvaluationService, EvaluationService>();
 
 builder.Services.AddControllers(options =>
 {
