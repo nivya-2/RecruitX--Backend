@@ -2,7 +2,7 @@
 {
     public class ToScheduleDto
     {
-        public string Id { get; set; }
+        public int Id { get; set; }
         public string RoleTitle { get; set; }
         public string DeliveryUnit { get; set; }
         public string Location { get; set; }
