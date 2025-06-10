@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using RecruitX.Data;
 using RecruitX.Interfaces;
 using RecruitX.Models.DTO;
@@ -156,34 +157,67 @@ namespace RecruitX.Repositories
         }
         public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jrId)
         {
-            var latestInterviews = await _context.Interviews
-                .Include(i => i.Application)
-                    .ThenInclude(a => a.Candidate)
-                .Include(i => i.Application)
-                    .ThenInclude(a => a.JobDescription)
-                .Where(i => i.Application.JobDescription.JobRequisitionId == jrId)
-                .OrderByDescending(i => i.CreatedAt)
+            var applications = await _context.Applications
+                .Include(a => a.Candidate)
+                .Include(a => a.JobDescription)
+                .Where(a => a.JobDescription.JobRequisitionId == jrId)
                 .ToListAsync();
 
-            var grouped = latestInterviews
-                .GroupBy(i => i.Application.Candidate.Id)
-                .Select(g => g.First())
-                .Select(i => new CandidateDTO
-                {
-                    Id = i.Application.Candidate.Id,
-                    Name = i.Application.Candidate.CandidateName,
-                    MobNumber = i.Application.Candidate.ContactNumber,
-                    Email = i.Application.Candidate.Email,
-                    CurrentEmployer = i.Application.Candidate.CurrentEmployer ?? string.Empty,
-                    TotalExp = $"{i.Application.Candidate.TotalExperienceYears} years",
-                    RelevantExp = $"{i.Application.Candidate.RelevantExperienceYears} years",
-                    Stage = $"{(i.IsTechnicalRound ? "Technical" : "Management")} {i.InterviewCount}"
-                })
-                .ToList();
+            var appIds = applications.Select(a => a.Id).ToList();
 
-            return grouped;
+            var interviews = await _context.Interviews
+                .Where(i => appIds.Contains(i.ApplicationId))
+                .ToListAsync();
+
+            var candidates = applications.Select(app =>
+            {
+                var candidateInterviews = interviews
+                    .Where(i => i.ApplicationId == app.Id)
+                    .ToList();
+
+                int techCount = candidateInterviews
+                    .Where(i => i.IsTechnicalRound)
+                    .Max(i => (int?)i.InterviewCount) ?? 0;
+
+                int mgmtCount = candidateInterviews
+                    .Where(i => !i.IsTechnicalRound)
+                    .Max(i => (int?)i.InterviewCount) ?? 0;
+
+                string stage;
+
+                if (app.Status == ApplicationStatus.TechnicalInterview)
+                {
+                    stage = $"Technical Interview {techCount + 1}";
+                }
+                else if (app.Status == ApplicationStatus.ManagementInterview)
+                {
+                    stage = $"Management Round {mgmtCount + 1}";
+                }
+                else
+                {
+                    stage = FormatStageFromStatus(app.Status);
+                }
+
+                return new CandidateDTO
+                {
+                    Id = app.Candidate.Id,
+                    Name = app.Candidate.CandidateName,
+                    MobNumber = app.Candidate.ContactNumber,
+                    Email = app.Candidate.Email,
+                    CurrentEmployer = app.Candidate.CurrentEmployer ?? string.Empty,
+                    TotalExp = $"{app.Candidate.TotalExperienceYears} years",
+                    RelevantExp = $"{app.Candidate.RelevantExperienceYears} years",
+                    Stage = stage
+                };
+            }).ToList();
+
+            return candidates;
         }
 
+        private string FormatStageFromStatus(ApplicationStatus status)
+        {
+            return Regex.Replace(status.ToString(), "([a-z])([A-Z])", "$1 $2");
+        }
 
     }
 }
