@@ -229,7 +229,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
            
-            })
+            }).OrderByDescending(jr => jr.CreatedDate)
+
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -297,6 +298,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
                                      //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
                                  })
+                                                 .OrderByDescending(jr => jr.CreatedDate)
+
     .ToListAsync();
 
                 //_logger.LogInformation("Found {Count} pending JDs for user {UserId}", pendingJds.Count, userId);
@@ -390,6 +393,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
                     // The 'Actions' property is initialized by the JdApplicantsDTO constructor
                 })
+                
+
                 .ToListAsync();
 
             return applicantsDto;
