@@ -177,11 +177,11 @@ namespace RecruitX.Repositories
         public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
         {
             var latestInterviews = await _context.Interviews
-    .Where(i => i.Application.JobDescriptionId == jdId)
-    .Include(i => i.Application)
-        .ThenInclude(a => a.Candidate)
-    .OrderByDescending(i => i.CreatedAt)
-    .ToListAsync();
+                .Where(i => i.Application.JobDescriptionId == jdId)
+                .Include(i => i.Application)
+                    .ThenInclude(a => a.Candidate)
+                .OrderByDescending(i => i.CreatedAt)
+                .ToListAsync();
 
             var grouped = latestInterviews
                 .GroupBy(i => i.Application.Candidate.Id)
