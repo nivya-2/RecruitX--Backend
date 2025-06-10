@@ -143,16 +143,51 @@ namespace RecruitX.Repositories
             return result;
         }
 
+        //public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
+        //{
+        //    return await _context.Interviews
+        //        .Where(i => i.Application.JobDescriptionId == jdId)
+        //        .Select(i => new CandidateDTO
+        //        {
+        //            Id = i.Application.Candidate.Id,
+        //            CandidateName = i.Application.Candidate.CandidateName,
+        //            MobileNumber = i.Application.Candidate.ContactNumber,
+        //            Email = i.Application.Candidate.Email,
+        //            CurrentEmployer = i.Application.Candidate.CurrentEmployer ?? string.Empty,
+        //            TotalExperience = $"{i.Application.Candidate.TotalExperienceYears} years",
+        //            RelevantExperience = $"{i.Application.Candidate.RelevantExperienceYears} years",
+        //            Stage = $"{(i.IsTechnicalRound ? "Technical" : "Management")} {i.InterviewCount}"
+        //        })
+        //        .ToListAsync();
+        //}
         public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jdId)
         {
-            return await _context.Applications
-                .Where(app => app.JobDescriptionId == jdId)
-                .Select(app => new CandidateDTO
+            var latestInterviews = await _context.Interviews
+    .Where(i => i.Application.JobDescriptionId == jdId)
+    .Include(i => i.Application)
+        .ThenInclude(a => a.Candidate)
+    .OrderByDescending(i => i.CreatedAt)
+    .ToListAsync();
+
+            var grouped = latestInterviews
+                .GroupBy(i => i.Application.Candidate.Id)
+                .Select(g => g.First())
+                .Select(i => new CandidateDTO
                 {
-                    Id = app.CandidateId,
-                    CandidateName = app.Candidate.CandidateName
+                    Id = i.Application.Candidate.Id,
+                    CandidateName = i.Application.Candidate.CandidateName,
+                    MobileNumber = i.Application.Candidate.ContactNumber,
+                    Email = i.Application.Candidate.Email,
+                    CurrentEmployer = i.Application.Candidate.CurrentEmployer ?? string.Empty,
+                    TotalExperience = $"{i.Application.Candidate.TotalExperienceYears} years",
+                    RelevantExperience = $"{i.Application.Candidate.RelevantExperienceYears} years",
+                    Stage = $"{(i.IsTechnicalRound ? "Technical" : "Management")} {i.InterviewCount}"
                 })
-                .ToListAsync();
+                .ToList();
+
+            return grouped;
         }
+
+
     }
 }
