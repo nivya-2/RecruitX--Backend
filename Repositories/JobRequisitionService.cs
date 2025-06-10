@@ -243,7 +243,7 @@ namespace RecruitX.Repositories
                     DepartmentName = jr.Department.Name,
                     LocationName = jr.Location != null ? jr.Location.LocationName : null,
                     HiringManagerName = jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
-                    RequestedOn = jr.RequestedDate,
+                    RequestedOn = jr.CreatedAt,
                     IsAssigned = assignments.Contains(jr.Id)
                 })
                 .ToListAsync();
