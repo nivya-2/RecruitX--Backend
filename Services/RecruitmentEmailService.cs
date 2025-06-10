@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using RecruitX.Models;
 
 public class RecruitmentEmailService : IRecruitmentEmailService
@@ -98,8 +99,11 @@ public class RecruitmentEmailService : IRecruitmentEmailService
 
             await _emailService.SendEmailAsync(candidate.Email, subject, body, isHtml: true);
 
-            _logger.LogError("Email sent to {Email} with subject '{Subject}'", candidate.Email, subject);
-        }
+            _logger.LogInformation("Successfully sent '{TemplateName}' email to {Email} with subject '{Subject}'",
+                        templateName,
+                        candidate.Email,
+                        subject);
+                }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in SendEmailFromTemplate for Application ID: {AppId}", applicationId);
