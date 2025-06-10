@@ -235,6 +235,7 @@ namespace RecruitX.Repositories
                 .Include(jr => jr.Department)
                 .Include(jr => jr.Location)
                 .Include(jr => jr.HiringManagerEmployee)
+                .OrderByDescending(jr => jr.CreatedAt)
                 .Select(jr => new JobRequisitionDto
                 {
                     Id = jr.Id,
@@ -293,6 +294,7 @@ namespace RecruitX.Repositories
                 .Include(jr => jr.JobSkills)
                     .ThenInclude(js => js.Skill)
                 .Include(jr => jr.Location)
+                .OrderByDescending(jr => jr.RequestedDate)
                 .Select(jr => new JobRequisitionSummaryDto
                 {
                     Id = jr.Id,
