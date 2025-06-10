@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Graph;
 using RecruitX.Interfaces;
+using RecruitX.Repositories;
+
 using RecruitX.Models;
 using RecruitX.Repositories;
 using Microsoft.Identity.Web;
@@ -138,11 +140,19 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
 // Add services to the container.
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IAssignedJrService, AssignedJrService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+
+//builder.Services.AddScoped<IUploadJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
+builder.Services.AddScoped<IInterviewService, InterviewRepository>();
 
-builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
+builder.Services.AddScoped<IJobDescriptionService, JobDescriptionService>();
 
 
 builder.Services.AddControllers(options =>

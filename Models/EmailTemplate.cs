@@ -13,5 +13,6 @@ namespace RecruitX.Models
         public DateTime CreatedAt { get; set; }
 
         public User Creator { get; set; }
+        public ICollection<EmailTemplateVariable> TemplateVariables { get; set; } = new List<EmailTemplateVariable>();
     }
 }

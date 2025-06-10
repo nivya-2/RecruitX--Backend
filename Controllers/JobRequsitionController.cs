@@ -121,7 +121,7 @@ namespace RecruitX.Controllers
                     jr.Role, // JobTitle
                     jr.Department.Name,
                     jr.Location.LocationName,
-                    jr.NumPositions ?? 0,
+                    jr.NumPositions ,
                     jr.RequestedDate,
                     jr.HiringManagerEmployee.FirstName + " " + jr.HiringManagerEmployee.LastName,
                     jr.CreatedByEmployee.FirstName + " " + jr.CreatedByEmployee.LastName,
@@ -229,5 +229,34 @@ namespace RecruitX.Controllers
             }
         }
 
+
+        [HttpGet("assigned-by-me")]
+        public async Task<ActionResult<List<TrackJobRequisitionDTO>>> GetAssignedJobRequisitions()
+        {
+            try
+            {
+                // Get logged-in user email from claims
+                var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                    ?? User.FindFirst("preferred_username")?.Value;
+
+                if (string.IsNullOrEmpty(email))
+                    return Unauthorized("User email not found in token.");
+
+                var assignedJRs = await _jobRequisitionService.GetAssignedJobRequisitionsAsync(email);
+
+                return Ok(assignedJRs);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Log exception here if needed
+                return StatusCode(500, "An error occurred while fetching assigned job requisitions.");
+            }
+        }
     }
+
+    
 }
