@@ -27,12 +27,11 @@ namespace RecruitX.Repositories
                 .Include(i => i.InterviewPanels)
                     .ThenInclude(ip => ip.Employee)
                         .ThenInclude(e => e.Department)
-                .OrderBy(i => i.ScheduledAt)
+                .OrderByDescending(i => i.ScheduledAt) // latest interview first
                 .ToListAsync();
 
             var interviewDTOs = allInterviews.Select(interview =>
             {
-                // No round count is needed. We'll simply set:
                 var typeLabel = interview.IsTechnicalRound ? "Technical" : "Management";
                 var isUpcoming = interview.ScheduledTo > now;
 
@@ -41,15 +40,15 @@ namespace RecruitX.Repositories
                     InterviewId = interview.Id,
                     CandidateName = interview.Application.Candidate.CandidateName,
                     JobRole = _context.JobRequisitions
-                                .Where(jr => jr.Id == interview.Application.JobDescription.JobRequisitionId)
-                                .Select(jr => jr.Role)
-                                .FirstOrDefault() ?? string.Empty,
+                        .Where(jr => jr.Id == interview.Application.JobDescription.JobRequisitionId)
+                        .Select(jr => jr.Role)
+                        .FirstOrDefault() ?? string.Empty,
                     Date = interview.ScheduledAt.Date,
                     Time = $"{interview.ScheduledAt:hh:mm tt} - {interview.ScheduledTo:hh:mm tt}",
-                    InterviewRound = typeLabel, // simply "Technical" or "Management"
+                    InterviewRound = typeLabel,
                     InterviewerName = interview.InterviewPanels
-                                .Select(p => p.Employee.FirstName + " " + p.Employee.LastName)
-                                .FirstOrDefault() ?? "N/A",
+                        .Select(p => p.Employee.FirstName + " " + p.Employee.LastName)
+                        .FirstOrDefault() ?? "N/A",
                     JobDescription = interview.Application.JobDescription.JobRequisitionId,
                     CreatedDate = interview.CreatedAt,
                     Status = isUpcoming ? "Upcoming" : "Completed"
@@ -58,80 +57,79 @@ namespace RecruitX.Repositories
 
             return interviewDTOs;
         }
+
         public async Task<IEnumerable<ToScheduleDto>> GetToScheduleInterviewsAsync()
         {
             return await _context.JobDescriptions
-        .Include(jd => jd.JobRequisition)
-            .ThenInclude(jr => jr.Department)
-        .Include(jd => jd.JobRequisition)
-            .ThenInclude(jr => jr.Location)
-        .Include(jd => jd.Applications)
-            .ThenInclude(app => app.Interviews)
-        .Where(jd =>
-            jd.Applications.Any(app =>
-                app.Status == ApplicationStatus.ManagementInterview ||
-                app.Status == ApplicationStatus.TechnicalInterview)
-            &&
-            !jd.Applications.Any(app => app.Interviews.Any(i =>
-            i.Status==InterviewStatus.Scheduled ||
-            i.Status==InterviewStatus.PendingShortlist)) //not pendingshortlist or scheduled
-        )
-        .Select(jd => new ToScheduleDto
-        {
-            Id = _context.JobRequisitions
-        .Where(jr => jr.Id == jd.JobRequisitionId)
-        .Select(jr => jr.Id)
-        .FirstOrDefault(),
+                .Include(jd => jd.JobRequisition)
+                    .ThenInclude(jr => jr.Department)
+                .Include(jd => jd.JobRequisition)
+                    .ThenInclude(jr => jr.Location)
+                .Include(jd => jd.Applications)
+                    .ThenInclude(app => app.Interviews)
+                .Where(jd =>
+                    jd.Applications.Any(app =>
+                        app.Status == ApplicationStatus.ManagementInterview ||
+                        app.Status == ApplicationStatus.TechnicalInterview)
+                    &&
+                    !jd.Applications.Any(app => app.Interviews.Any(i =>
+                        i.Status == InterviewStatus.Scheduled ||
+                        i.Status == InterviewStatus.PendingShortlist))
+                )
+                .OrderByDescending(jd => jd.CreatedAt) // ✅ most recently created JD first
+                .Select(jd => new ToScheduleDto
+                {
+                    Id = _context.JobRequisitions
+                        .Where(jr => jr.Id == jd.JobRequisitionId)
+                        .Select(jr => jr.Id)
+                        .FirstOrDefault(),
 
-            RoleTitle = _context.JobRequisitions
-        .Where(jr => jr.Id == jd.JobRequisitionId)
-        .Select(jr => jr.Role)
-        .FirstOrDefault(),
+                    RoleTitle = _context.JobRequisitions
+                        .Where(jr => jr.Id == jd.JobRequisitionId)
+                        .Select(jr => jr.Role)
+                        .FirstOrDefault(),
 
-            DeliveryUnit = _context.JobRequisitions
-        .Where(jr => jr.Id == jd.JobRequisitionId)
-        .Select(jr => jr.Department.Name)
-        .FirstOrDefault(),
+                    DeliveryUnit = _context.JobRequisitions
+                        .Where(jr => jr.Id == jd.JobRequisitionId)
+                        .Select(jr => jr.Department.Name)
+                        .FirstOrDefault(),
 
-            Location = _context.JobRequisitions
-        .Where(jr => jr.Id == jd.JobRequisitionId)
-        .Select(jr => jr.Location.LocationName)
-        .FirstOrDefault(),
+                    Location = _context.JobRequisitions
+                        .Where(jr => jr.Id == jd.JobRequisitionId)
+                        .Select(jr => jr.Location.LocationName)
+                        .FirstOrDefault(),
 
-            Experience = _context.JobRequisitions
-        .Where(jr => jr.Id == jd.JobRequisitionId)
-        .Select(jr => jr.RelevantExperienceYears ?? 0)
-        .FirstOrDefault(),
+                    Experience = _context.JobRequisitions
+                        .Where(jr => jr.Id == jd.JobRequisitionId)
+                        .Select(jr => jr.RelevantExperienceYears ?? 0)
+                        .FirstOrDefault(),
 
-            CreatedDate = jd.CreatedAt,
-            AssoJr = jd.JobRequisitionId.ToString(),
-            Actions = new List<string> { "Schedule" }
-        })
-        .ToListAsync();
+                    CreatedDate = jd.CreatedAt,
+                    AssoJr = jd.JobRequisitionId.ToString(),
+                    Actions = new List<string> { "Schedule" }
+                })
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<ToShortlistDto>> GetInterviewsToShortlistAsync()
         {
             var now = DateTime.UtcNow;
 
-            // Step 1: Get all interviews that are completed but pending shortlisting
             var interviews = await _context.Interviews
                 .Include(i => i.Application)
                     .ThenInclude(app => app.Candidate)
-             .Include(i => i.Application)
+                .Include(i => i.Application)
                     .ThenInclude(app => app.JobDescription)
                 .Where(i =>
-                    //i.ScheduledTo < now &&
-                    i.Status == InterviewStatus.PendingShortlist // enum-based filtering
+                    i.Status == InterviewStatus.PendingShortlist
                 )
-                .OrderBy(i => i.ScheduledAt)
+                .OrderByDescending(i => i.ScheduledAt) // ✅ latest interviews first
                 .ToListAsync();
 
             var result = new List<ToShortlistDto>();
 
             foreach (var interview in interviews)
             {
-                // Count how many technical/management interviews happened before this
                 var previousRounds = interviews
                     .Where(x =>
                         x.ApplicationId == interview.ApplicationId &&
@@ -157,7 +155,6 @@ namespace RecruitX.Repositories
 
             return result;
         }
-
         public async Task<List<CandidateDTO>> GetCandidatesByJobDescriptionIdAsync(int jrId)
         {
             var applications = await _context.Applications

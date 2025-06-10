@@ -12,7 +12,7 @@ public class JobRequisitionDto
 
     public string? HiringManagerName { get; init; }     // Hiring Manager
 
-    public DateOnly? RequestedOn { get; init; }         // Requested On (was Uploaded On)
-
+    //public DateOnly? RequestedOn { get; init; }         // Requested On (was Uploaded On)
+    public DateTime RequestedOn { get; set; } = DateTime.UtcNow;
     public bool IsAssigned { get; init; }               // Assignment flag
 }
