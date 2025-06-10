@@ -746,6 +746,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+                    result.SuccessfulApplicationIds.Add(application.Id);
+
                     result.SuccessCount++;
                 }
                 catch (Exception ex)
