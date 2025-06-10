@@ -37,19 +37,20 @@ namespace RecruitX.Repositories
 
                 return new InterviewDTO
                 {
+                    InterviewId = interview.Id,
                     CandidateName = interview.Application.Candidate.CandidateName,
                     JobRole = _context.JobRequisitions
                                 .Where(jr => jr.Id == interview.Application.JobDescription.JobRequisitionId)
                                 .Select(jr => jr.Role)
                                 .FirstOrDefault() ?? string.Empty,
-                    Date = interview.ScheduledAt.ToString("dd/MM/yyyy"),
+                    Date = interview.ScheduledAt.Date,
                     Time = $"{interview.ScheduledAt:hh:mm tt} - {interview.ScheduledTo:hh:mm tt}",
                     InterviewRound = typeLabel, // simply "Technical" or "Management"
                     InterviewerName = interview.InterviewPanels
                                 .Select(p => p.Employee.FirstName + " " + p.Employee.LastName)
                                 .FirstOrDefault() ?? "N/A",
                     JobDescription = interview.Application.JobDescription.JobRequisitionId,
-                    CreatedDate = interview.CreatedAt.ToString("dd/MM/yyyy"),
+                    CreatedDate = interview.CreatedAt,
                     Status = isUpcoming ? "Upcoming" : "Completed"
                 };
             }).ToList();
@@ -101,7 +102,7 @@ namespace RecruitX.Repositories
         .Select(jr => jr.RelevantExperienceYears ?? 0)
         .FirstOrDefault(),
 
-            CreatedDate = jd.CreatedAt.ToString("dd/MM/yyyy"),
+            CreatedDate = jd.CreatedAt,
             AssoJr = jd.JobRequisitionId.ToString(),
             Actions = new List<string> { "Schedule" }
         })
@@ -144,9 +145,10 @@ namespace RecruitX.Repositories
                 result.Add(new ToShortlistDto
                 {
                     Id = "CAN_" + interview.Application.Candidate.Id.ToString("D3"),
+                    InterviewId = interview.Id,
                     JdId = interview.Application.JobDescription.JobRequisitionId,
                     Name = interview.Application.Candidate.CandidateName,
-                    InterviewDate = interview.ScheduledAt.ToString("dd/MM/yyyy"),
+                    InterviewDate = interview.ScheduledAt,
                     InterviewType = roundLabel,
                     Actions = new List<string> { "Shortlist" }
                 });
