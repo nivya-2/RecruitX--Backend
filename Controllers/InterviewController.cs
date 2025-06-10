@@ -34,5 +34,12 @@ namespace RecruitX.Controllers
             var result = await _interviewRepo.GetInterviewsToShortlistAsync();
             return Ok(result);
         }
+
+        [HttpGet("schedule/{jrId}")]
+        public async Task<IActionResult> GetCandidatesByJD(int jrId)
+        {
+            var candidates = await _interviewRepo.GetCandidatesByJobDescriptionIdAsync(jrId);
+            return Ok(candidates);
+        }
     }
 }
