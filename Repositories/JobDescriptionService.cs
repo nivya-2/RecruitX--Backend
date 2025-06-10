@@ -376,9 +376,20 @@ Create a job description with ONLY these sections (do not add extra sections lik
             // if (!jdExists) {
             //     return Enumerable.Empty<JdApplicantsDTO>(); // Or throw NotFoundException
             // }
+            var associatedJdIds = await _context.JobDescriptions
+      .Where(jd => jd.JobRequisitionId == jobDescriptionId)
+      .Select(jd => jd.Id) // We only need the IDs
+      .ToListAsync();
+
+            // If no Job Descriptions are found for this requisition, no applicants can exist.
+            if (!associatedJdIds.Any())
+            {
+                _logger.LogWarning("No Job Descriptions found for Job Requisition ID {JobRequisitionId}. Returning empty applicant list.", jobDescriptionId);
+                return Enumerable.Empty<JdApplicantsDTO>();
+            }
 
             var applicantsDto = await _context.Applications
-                .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
+                .Where(app => associatedJdIds.Contains(app.JobDescriptionId) && app.Candidate != null)
                 .Select(app => new JdApplicantsDTO
                 {
                     CandidateId = app.Candidate.Id,

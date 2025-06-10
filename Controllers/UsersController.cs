@@ -1,7 +1,9 @@
-﻿using Azure;
+﻿using System.Security.Claims;
+using Azure;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RecruitX.Interfaces;
+using RecruitX.Models.DTO;
 using RecruitX.Repositories;
 
 namespace RecruitX.Controllers
@@ -33,5 +35,21 @@ namespace RecruitX.Controllers
             var team = await _teamService.GetTeamMembersAsync();
             return Ok(team); // Will not include UserId due to [JsonIgnore]
         }
+
+        [HttpGet("my-team")]
+        public async Task<ActionResult<IEnumerable<TeamMemberDTO>>> GetMyRecruiters()
+        {
+            var userEmail = User.FindFirstValue(ClaimTypes.Email) ?? User.FindFirstValue("preferred_username");
+
+            if (string.IsNullOrWhiteSpace(userEmail))
+            {
+                return Unauthorized("User email claim not found in token.");
+            }
+
+            var result = await _teamService.GetRecruitersForLeadAsync(userEmail);
+
+            return Ok(result);
+        }
+
     }
 }
