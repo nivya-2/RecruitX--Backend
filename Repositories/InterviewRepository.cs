@@ -16,7 +16,8 @@ namespace RecruitX.Repositories
 
         public async Task<IEnumerable<InterviewDTO>> GetAllInterviewsAsync()
         {
-            return await _context.Interviews
+            var now = DateTime.UtcNow;
+            var allInterviews = await _context.Interviews
                 .Include(i => i.Application)
                     .ThenInclude(a => a.Candidate)
                 .Include(i => i.Application)
@@ -25,28 +26,36 @@ namespace RecruitX.Repositories
                 .Include(i => i.InterviewPanels)
                     .ThenInclude(ip => ip.Employee)
                         .ThenInclude(e => e.Department)
-                .Select(i => new InterviewDTO
-                {
-                    CandidateName = i.Application.Candidate.CandidateName,
-                    //JobRole = i.Application.JobDescription.JobRequisition.Role,
-                    JobRole = _context.JobRequisitions
-                    .Where(jr => jr.Id == i.Application.JobDescription.JobRequisitionId)
-                    .Select(jr => jr.Role)
-                    .FirstOrDefault(),
-                    Date = i.ScheduledAt.ToString("dd/MM/yyyy hh:mm tt"),
-                    Time = i.ScheduledTo.ToString("dd/MM/yyyy hh:mm tt"),
-                    InterviewRound = i.Status.ToString(), // replace with real round logic if needed
-                    InterviewerName = i.InterviewPanels
-                        .Select(p => p.Employee.FirstName + " " + p.Employee.LastName)
-                        .FirstOrDefault(),
-                    InterviewerDeliveryUnit = i.InterviewPanels
-                        .Select(p => p.Employee.Department.Name)
-                        .FirstOrDefault(),
-                    CreatedDate = i.CreatedAt.ToString("dd/MM/yyyy")
-                })
+                .OrderBy(i => i.ScheduledAt)
                 .ToListAsync();
-        }
 
+            var interviewDTOs = allInterviews.Select(interview =>
+            {
+                // No round count is needed. We'll simply set:
+                var typeLabel = interview.IsTechnicalRound ? "Technical" : "Management";
+                var isUpcoming = interview.ScheduledTo > now;
+
+                return new InterviewDTO
+                {
+                    CandidateName = interview.Application.Candidate.CandidateName,
+                    JobRole = _context.JobRequisitions
+                                .Where(jr => jr.Id == interview.Application.JobDescription.JobRequisitionId)
+                                .Select(jr => jr.Role)
+                                .FirstOrDefault() ?? string.Empty,
+                    Date = interview.ScheduledAt.ToString("dd/MM/yyyy"),
+                    Time = $"{interview.ScheduledAt:hh:mm tt} - {interview.ScheduledTo:hh:mm tt}",
+                    InterviewRound = typeLabel, // simply "Technical" or "Management"
+                    InterviewerName = interview.InterviewPanels
+                                .Select(p => p.Employee.FirstName + " " + p.Employee.LastName)
+                                .FirstOrDefault() ?? "N/A",
+                    JobDescription = interview.Application.JobDescription.JobRequisitionId,
+                    CreatedDate = interview.CreatedAt.ToString("dd/MM/yyyy"),
+                    Status = isUpcoming ? "Upcoming" : "Completed"
+                };
+            }).ToList();
+
+            return interviewDTOs;
+        }
         public async Task<IEnumerable<ToScheduleDto>> GetToScheduleInterviewsAsync()
         {
             return await _context.JobDescriptions
@@ -58,14 +67,19 @@ namespace RecruitX.Repositories
             .ThenInclude(app => app.Interviews)
         .Where(jd =>
             jd.Applications.Any(app =>
-                app.Status == ApplicationStatus.Applied ||
+                app.Status == ApplicationStatus.ManagementInterview ||
                 app.Status == ApplicationStatus.TechnicalInterview)
             &&
-            !jd.Applications.Any(app => app.Interviews.Any())
+            !jd.Applications.Any(app => app.Interviews.Any(i =>
+            i.Status==InterviewStatus.Scheduled ||
+            i.Status==InterviewStatus.PendingShortlist)) //not pendingshortlist or scheduled
         )
         .Select(jd => new ToScheduleDto
         {
-            Id = jd.Id.ToString(),
+            Id = _context.JobRequisitions
+        .Where(jr => jr.Id == jd.JobRequisitionId)
+        .Select(jr => jr.Id)
+        .FirstOrDefault(),
 
             RoleTitle = _context.JobRequisitions
         .Where(jr => jr.Id == jd.JobRequisitionId)
@@ -87,7 +101,7 @@ namespace RecruitX.Repositories
         .Select(jr => jr.RelevantExperienceYears ?? 0)
         .FirstOrDefault(),
 
-            CreatedDate = jd.CreatedAt.ToString("dd-MM-yyyy"),
+            CreatedDate = jd.CreatedAt.ToString("dd/MM/yyyy"),
             AssoJr = jd.JobRequisitionId.ToString(),
             Actions = new List<string> { "Schedule" }
         })
@@ -102,6 +116,8 @@ namespace RecruitX.Repositories
             var interviews = await _context.Interviews
                 .Include(i => i.Application)
                     .ThenInclude(app => app.Candidate)
+             .Include(i => i.Application)
+                    .ThenInclude(app => app.JobDescription)
                 .Where(i =>
                     //i.ScheduledTo < now &&
                     i.Status == InterviewStatus.PendingShortlist // enum-based filtering
@@ -127,7 +143,8 @@ namespace RecruitX.Repositories
 
                 result.Add(new ToShortlistDto
                 {
-                    Id = "CAN" + interview.Application.Candidate.Id.ToString("D3"),
+                    Id = "CAN_" + interview.Application.Candidate.Id.ToString("D3"),
+                    JdId = interview.Application.JobDescription.JobRequisitionId,
                     Name = interview.Application.Candidate.CandidateName,
                     InterviewDate = interview.ScheduledAt.ToString("dd/MM/yyyy"),
                     InterviewType = roundLabel,

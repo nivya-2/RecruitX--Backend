@@ -235,6 +235,7 @@ namespace RecruitX.Repositories
                 .Include(jr => jr.Department)
                 .Include(jr => jr.Location)
                 .Include(jr => jr.HiringManagerEmployee)
+                .OrderByDescending(jr => jr.CreatedAt)
                 .Select(jr => new JobRequisitionDto
                 {
                     Id = jr.Id,
@@ -293,6 +294,7 @@ namespace RecruitX.Repositories
                 .Include(jr => jr.JobSkills)
                     .ThenInclude(js => js.Skill)
                 .Include(jr => jr.Location)
+                .OrderByDescending(jr => jr.RequestedDate)
                 .Select(jr => new JobRequisitionSummaryDto
                 {
                     Id = jr.Id,
@@ -363,8 +365,72 @@ namespace RecruitX.Repositories
             return resultDto;
         }
 
+        public async Task<IEnumerable<TrackJobRequisitionDTO>> GetAssignedJobRequisitionsAsync(string userEmail)
+        {
+            // Get user and role
+            var user = await _context.Users
+                .Include(u => u.Employee)
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == userEmail.ToLower());
 
+            if (user == null)
+                return new List<TrackJobRequisitionDTO>();
 
+            var role = await _context.Roles
+                .Where(r => r.Id == user.RoleId)
+                .Select(r => r.RoleName)
+                .FirstOrDefaultAsync();
 
+            // Base query: assignments joined with JobRequisition and related info
+            var baseQuery = from jr in _context.JobRequisitions
+                            join ja in _context.JrAssignments on jr.Id equals ja.JobRequisitionId
+                            join assignedEmp in _context.Employees on ja.AssignedTo equals assignedEmp.Id
+                            join dept in _context.Departments on jr.DepartmentId equals dept.Id into deptGroup
+                            from dept in deptGroup.DefaultIfEmpty()
+                            join loc in _context.Locations on jr.LocationId equals loc.Id into locGroup
+                            from loc in locGroup.DefaultIfEmpty()
+                            join hm in _context.Employees on jr.HiringManager equals hm.Id into hmGroup
+                            from hm in hmGroup.DefaultIfEmpty()
+                            select new { jr, ja, assignedEmp, dept, loc, hm };
+
+            // Filter based on role
+            if (role == "Recruiter Head")
+            {
+                // Head sees all assigned JRs
+                // no additional filter needed
+            }
+            else if (role == "Recruiter Lead")
+            {
+                // Lead sees only JRs he assigned
+                baseQuery = baseQuery.Where(x => x.ja.AssignedBy == user.Employee.Id);
+            }
+            else
+            {
+                // Other roles see nothing
+                return new List<TrackJobRequisitionDTO>();
+            }
+
+            // Project to DTO
+            var result = await baseQuery
+                .Select(x => new TrackJobRequisitionDTO
+                {
+                    Id = x.jr.Id,
+                    Role = x.jr.Role ?? string.Empty,
+                    DepartmentName = x.dept != null ? x.dept.Name : "N/A",
+                    LocationName = x.loc != null ? x.loc.LocationName : "N/A",
+                    HiringManagerName = x.hm != null ? (x.hm.FirstName + " " + x.hm.LastName) : "N/A",
+                    status = x.jr.JrStatus.ToString(),
+                    NumPositions = x.jr.NumPositions,
+                    FilledPositions = _context.JobDescriptions
+                                        .Where(jd => jd.JobRequisitionId == x.jr.Id)
+                                        .Sum(jd => jd.FilledPositions),
+                    assignedTo = x.assignedEmp.FirstName + " " + x.assignedEmp.LastName,
+                    assignedOn = DateOnly.FromDateTime(x.ja.AssignedAt),
+                    CloseBy = x.jr.ExpectedOnboardingDate
+                })
+                .ToListAsync();
+
+            return result;
+        }
     }
-}
+
+  }

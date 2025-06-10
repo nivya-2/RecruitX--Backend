@@ -14,7 +14,7 @@ namespace RecruitX.Controllers
     [ApiController]
     public class JobDescriptionController : ControllerBase
     {
-        private readonly ITrackJdService _jobTrackingService;
+        private readonly IJobDescriptionService _jobTrackingService;
         private readonly ILogger<JobDescriptionController> _logger;
         private readonly AppDbContext _context;
         private static readonly List<ApplicationStatus> Workflow = new List<ApplicationStatus>
@@ -29,7 +29,7 @@ namespace RecruitX.Controllers
     };
 
 
-        public JobDescriptionController(ITrackJdService jobTrackingService, ILogger<JobDescriptionController> logger, AppDbContext context)
+        public JobDescriptionController(IJobDescriptionService jobTrackingService, ILogger<JobDescriptionController> logger, AppDbContext context)
         {
             _jobTrackingService = jobTrackingService;
             _logger = logger;
