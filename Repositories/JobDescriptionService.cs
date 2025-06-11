@@ -149,6 +149,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
             var existingJD = await _context.JobDescriptions
                 .FirstOrDefaultAsync(j => j.JobRequisitionId == dto.JobRequisitionId);
 
+            Console.WriteLine(existingJD);
+
             if (existingJD == null)
             {
                 var jd = new JobDescription
@@ -165,6 +167,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
             {
                 existingJD.JobDesc = dto.JobDescription;
                 existingJD.Updates = dto.AdditionalInfo;
+                _context.JobDescriptions.Update(existingJD);
             }
 
             jr.JDstatus = Status.Draft;
@@ -231,8 +234,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         JobStatus = result.assign.JobRequisition.JrStatus,
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
-           
-            }).OrderByDescending(jr => jr.CreatedDate)
+
+                    }).OrderByDescending(jr => jr.CreatedDate)
 
                     .ToListAsync();
 
@@ -294,7 +297,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      RoleTitle = jr.Role,
                                      BusinessUnit = jr.Department != null ? jr.Department.Name : "N/A",
                                      location = jr.Location != null ? jr.Location.LocationName : "N/A",
-                                     openPositions = jr.NumPositions ,
+                                     openPositions = jr.NumPositions,
                                      Actions = new List<string> { jr.JDstatus.ToString() },
                                      HiringManager = jr.HiringManagerEmployee != null ?
             $"{jr.HiringManagerEmployee.FirstName} {jr.HiringManagerEmployee.LastName}" : "N/A",
@@ -398,7 +401,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
        .ToListAsync();
 
             return applicantsDto;
-        
+
         }
 
         public async Task<CandidateDetailsDTO?> GetCandidateDetailsByApplicationIdAsync(int applicationId)
@@ -416,14 +419,14 @@ Create a job description with ONLY these sections (do not add extra sections lik
             var candidate = application.Candidate;
             var jobDescription = application.JobDescription;
 
-                JobRequisition? jobRequisition = null;
-                if (jobDescription != null)
-                {
-                    // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
-                    jobRequisition = await _context.JobRequisitions
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
-                }
+            JobRequisition? jobRequisition = null;
+            if (jobDescription != null)
+            {
+                // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
+                jobRequisition = await _context.JobRequisitions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
+            }
 
             return new CandidateDetailsDTO
             {
@@ -445,7 +448,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
             };
 
-            
+
         }
 
         public async Task<ApplicationDetailsPageDTO?> GetApplicationPageDetailsAsync(int applicationId)
@@ -836,5 +839,9 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 throw; // This will be caught by the calling method's try-catch
             }
         }
+
+      
+      
+
     }
 }
