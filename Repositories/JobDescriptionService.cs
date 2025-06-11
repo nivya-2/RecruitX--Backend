@@ -58,7 +58,6 @@ namespace RecruitX.Repositories
                 JobSpecification = jr.JobSpecification,
                 OnboardingDate = jr.ExpectedOnboardingDate?.ToString("dd/MM/yyyy"),
                 JobDescription = jr.JobDuties,
-
             };
 
             var skills = jr.JobSkills.Select(js => new
@@ -74,34 +73,34 @@ namespace RecruitX.Repositories
             var prompt = $"""
 You are an expert HR professional creating a compelling job description. Generate a comprehensive, professional job posting for the following position:
 
-**Position Details:**
+Position Details:
 - Role: {dto.Role}
 - Required Experience: {dto.TotalExperienceYears} years
 - Educational Requirements: {dto.Qualification}
 
-**Skills & Competencies:**
+Skills & Competencies:
 - Essential Skills (Must Have): {dto.SkillsMandatory}
 - Core Skills (Preferred): {dto.SkillsPrimary}  
 - Additional Skills (Nice to Have): {dto.SkillsGood}
 
-**Role Information:**
+Role Information:
 - Purpose/Objective: {dto.JobPurpose}
 - Key Specifications: {dto.JobSpecification}
 - Primary Responsibilities: {dto.JobDescription}
 
-**Output Requirements:**
+Output Requirements:
 Create a job description with ONLY these sections (do not add extra sections like Department, Reports To, or Compensation):
 
-1. **Job Title & Summary**: Start with the role title, followed by 2-3 compelling sentences about the role's impact and what makes it exciting
-2. **Key Responsibilities**: 6-8 bullet points using strong action verbs, focusing on outcomes and value delivered
-3. **Required Qualifications**: Clearly separate education, experience, and technical requirements
-4. **Technical Skills**: Present skills in the exact priority structure provided:
-   - **Essential/Mandatory**: [List mandatory skills]
-   - **Primary/Preferred**: [List primary skills]  
-   - **Good to Have/Nice to Have**: [List additional skills]
-5. **What You'll Gain**: Brief mention of growth opportunities, learning, or impact (2-3 sentences)
+1. Job Title & Summary: Start with the role title, followed by 2-3 compelling sentences about the role's impact and what makes it exciting
+2. Key Responsibilities: 6-8 bullet points using strong action verbs, focusing on outcomes and value delivered
+3. Required Qualifications: Clearly separate education, experience, and technical requirements
+4. Technical Skills: Present skills in the exact priority structure provided:
+   - Essential/Mandatory: [List mandatory skills]
+   - Primary/Preferred: [List primary skills]  
+   - Good to Have/Nice to Have: [List additional skills]
+5. What You'll Gain: Brief mention of growth opportunities, learning, or impact (2-3 sentences)
 
-**Critical Instructions:**
+Critical Instructions:
 - Do NOT add sections for Department, Reports To, Compensation, or Benefits
 - Do NOT use placeholder text like "(Add details here)" or "(experience a plus)"
 - Do NOT mention specific company names, products, or platforms (like RecruitX)
@@ -116,16 +115,24 @@ Create a job description with ONLY these sections (do not add extra sections lik
 - Do NOT add specific technology versions unless provided in the DTO
 - Keep responsibilities focused and concise - avoid generic software development tasks
 - Write in a way that could apply to any technology company
+- IMPORTANT: Do NOT use asterisks (*) anywhere in your response - use plain text formatting only
+- Do NOT use markdown formatting symbols like *, **, #, ##, or any other special characters for emphasis
+- Use plain text with proper spacing and line breaks for formatting
 
-**Style Guidelines:**
+Style Guidelines:
 - Use active voice and impactful action verbs (develop, architect, optimize, lead, etc.)
 - Focus on what the candidate will accomplish, not just what they'll do
 - Make technical requirements specific and measurable
 - Ensure the description flows naturally and tells a story about the role
+- Format with plain text only - no special formatting characters
 """;
+
             try
             {
-                dto.JobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+                var rawJobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+
+                // Clean up the generated content by removing unwanted formatting
+                dto.JobDescription = CleanJobDescription(rawJobDescription);
             }
             catch (Exception ex)
             {
@@ -136,6 +143,43 @@ Create a job description with ONLY these sections (do not add extra sections lik
             return dto;
         }
 
+        // Helper method to clean up the job description
+        private string CleanJobDescription(string rawContent)
+        {
+            if (string.IsNullOrEmpty(rawContent))
+                return rawContent;
+
+            var cleaned = rawContent;
+
+            // Remove markdown formatting characters but preserve structure
+            cleaned = cleaned.Replace("**", "")    // Remove bold markdown
+                            .Replace("##", "")     // Remove heading markdown  
+                            .Replace("#", "")      // Remove heading markdown
+                            .Replace("`", "");     // Remove code ticks
+
+            // Remove standalone asterisks (but be careful with bullet points)
+            // Only remove asterisks that are used for emphasis, not bullet points
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<!\n)\s*\*(?!\s)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\*(?=\w)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<=\w)\*", "");
+
+            // Clean up only excessive whitespace, preserve single spaces and line breaks
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+", " ");  // Multiple spaces/tabs to single space
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n[ \t]+", "\n"); // Remove spaces at start of lines
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+\n", "\n"); // Remove spaces at end of lines
+
+            // Clean up excessive line breaks (more than 2 consecutive)
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n{3,}", "\n\n");
+
+            // Fix common formatting issues
+            cleaned = cleaned.Replace("- -", "-")    // Fix double dashes in bullet points
+                            .Trim();                 // Remove leading/trailing whitespace only
+
+            return cleaned;
+        }
+
+
+     
         public async Task<bool> SaveDraftJobDescriptionAsync(JobDescriptionDTO dto, string userEmail)
         {
             var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);
