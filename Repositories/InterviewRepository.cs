@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using RecruitX.Data;
 using RecruitX.Interfaces;
+using RecruitX.Models;
 using RecruitX.Models.DTO;
 
 namespace RecruitX.Repositories
@@ -219,5 +220,188 @@ namespace RecruitX.Repositories
             return Regex.Replace(status.ToString(), "([a-z])([A-Z])", "$1 $2");
         }
 
+        private async Task<Application?> FindApplicationAsync(int jobRequisitionId, int candidateId)
+        {
+            // We must join through JobDescription to link a JR to an Application.
+            return await _context.Applications
+                .Include(app => app.JobDescription)
+                .FirstOrDefaultAsync(app =>
+                    app.CandidateId == candidateId &&
+                    app.JobDescription.JobRequisitionId == jobRequisitionId
+                );
+        }
+
+        /// <summary>
+        /// Shortlists a candidate, moving them to the next logical step (e.g., TechnicalInterview).
+        /// </summary>
+        public async Task<bool> ShortlistCandidateAsync(int jobRequisitionId, int candidateId)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var application = await FindApplicationAsync(jobRequisitionId, candidateId);
+                if (application == null)
+                {
+                    return false;
+                }
+
+                var interview = await _context.Interviews
+                   .FirstOrDefaultAsync(i => i.ApplicationId == application.Id);
+
+                if(interview!=null)
+                {
+                    interview.InterviewCount = 1;
+
+                }
+                else
+                {
+                    Console.WriteLine("interview does not exist");
+                }
+
+                    var oldStatus = application.Status;
+                ApplicationStatus newStatus;
+
+                // --- THIS IS THE NEW STATE MACHINE LOGIC ---
+                switch (oldStatus)
+                {
+
+                    case ApplicationStatus.TechnicalInterview:
+                        newStatus = ApplicationStatus.ManagementInterview;
+                        break;
+
+                    case ApplicationStatus.ManagementInterview:
+                        newStatus = ApplicationStatus.DocumentationVerified;
+                        break;
+
+                    // If the application is in any other state, we cannot "advance" it with this action.
+                    default:
+                        return false; // Action is not applicable in the current state.
+                }
+                // ------------------------------------------
+
+                application.Status = newStatus;
+                _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
+                {
+                    ApplicationId = application.Id,
+                    OldStatus = oldStatus,
+                    NewStatus = newStatus,
+                    ChangedAt = DateTime.UtcNow
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Rejects a candidate's application.
+        /// </summary>
+        public async Task<bool> RejectCandidateAsync(int jobRequisitionId, int candidateId)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var application = await FindApplicationAsync(jobRequisitionId, candidateId);
+                if (application == null)
+                {
+                    return false;
+                }
+
+                // Business rule: Cannot reject an already finished application.
+                if (application.Status == ApplicationStatus.Joined || application.Status == ApplicationStatus.Rejected)
+                {
+                    return false;
+                }
+
+                var interview = await _context.Interviews
+                 .FirstOrDefaultAsync(i => i.ApplicationId == application.Id);
+
+                if (interview != null)
+                {
+                    interview.InterviewCount = 1;
+
+                }
+                else
+                {
+                    Console.WriteLine("interview does not exist");
+                }
+
+                var oldStatus = application.Status;
+                var newStatus = ApplicationStatus.Rejected;
+
+                application.Status = newStatus;
+                _context.ApplicationStatusHistories.Add(new ApplicationStatusHistory
+                {
+                    ApplicationId = application.Id,
+                    OldStatus = oldStatus,
+                    NewStatus = newStatus,
+                    ChangedAt = DateTime.UtcNow
+                });
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
+
+        public async Task<bool> IncrementInterviewCountAsync(int jobRequisitionId, int candidateId)
+        {
+            try
+            {
+                // 1. Find the parent Application record.
+                var application = await FindApplicationAsync(jobRequisitionId, candidateId);
+                if (application == null)
+                {
+                    return false;
+                }
+
+                // 2. Find the Interview record associated with this application.
+                // We fetch with tracking enabled because we intend to update it.
+                var interview = await _context.Interviews
+                    .FirstOrDefaultAsync(i => i.ApplicationId == application.Id);
+
+                if (interview == null)
+                {
+                    // 3a. If no interview record exists, create a new one.
+                    ////_logger.LogInformation("No existing interview record found for Application ID {ApplicationId}. Creating a new one.", application.Id);
+                    //interview = new Interview
+                    //{
+                    //    ApplicationId = application.Id,
+                    //    InterviewCount = 1, // Start the count at 1
+                    //    Status = InterviewStatus.Scheduled, // Example default status
+                    //    ScheduledAt = DateTime.UtcNow // Example default time
+                    //};
+                    //_context.Interviews.Add(interview);
+                    Console.WriteLine( "No interview exists ");
+                }
+                else
+                {
+                    // 3b. If it already exists, just increment the count.
+                    interview.InterviewCount += 1;
+                    //_logger.LogInformation("Incrementing interview count for Application ID {ApplicationId}. New count: {Count}", application.Id, interview.InterviewCount);
+                }
+
+                // 4. Save the new or updated record to the database.
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                //_logger.LogError(ex, "Error incrementing interview count for JR ID {JR_ID} and Candidate ID {C_ID}", jobRequisitionId, candidateId);
+                return false;
+            }
+        }
     }
 }
