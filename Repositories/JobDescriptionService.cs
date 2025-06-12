@@ -24,6 +24,32 @@ namespace RecruitX.Repositories
           .OrderBy(s => (int)s)
           .ToList();
 
+        private string CleanJobDescription(string rawContent)
+        {
+            if (string.IsNullOrEmpty(rawContent))
+                return rawContent;
+
+            var cleaned = rawContent;
+
+            cleaned = cleaned.Replace("**", "")
+                             .Replace("##", "")
+                             .Replace("#", "")
+                             .Replace("`", "");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<!\n)\s*\*(?!\s)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\*(?=\w)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<=\w)\*", "");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+", " ");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n[ \t]+", "\n");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+\n", "\n");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n{3,}", "\n\n");
+
+            cleaned = cleaned.Replace("- -", "-").Trim();
+
+            return cleaned;
+        }
 
         public JobDescriptionService(AppDbContext context, ILogger<JobDescriptionService> logger, GeminiJobDescriptionGenerator gemini, IRecruitmentEmailService recruitmentEmailService)
         {
@@ -125,7 +151,10 @@ Create a job description with ONLY these sections (do not add extra sections lik
 """;
             try
             {
-                dto.JobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+                var rawJobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+
+                // Clean up the generated content by removing unwanted formatting
+                dto.JobDescription = CleanJobDescription(rawJobDescription);
             }
             catch (Exception ex)
             {
@@ -135,6 +164,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
             return dto;
         }
+
+
 
         public async Task<bool> SaveDraftJobDescriptionAsync(JobDescriptionDTO dto, string userEmail)
         {
