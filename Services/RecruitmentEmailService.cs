@@ -99,10 +99,10 @@ public class RecruitmentEmailService : IRecruitmentEmailService
 
             await _emailService.SendEmailAsync(candidate.Email, subject, body, isHtml: true);
 
-            _logger.LogInformation("Successfully sent '{TemplateName}' email to {Email} with subject '{Subject}'",
+            _logger.LogInformation("Successfully sent '{TemplateName}' email to {Email} with subject '{Subject}' and {id}",
                         templateName,
                         candidate.Email,
-                        subject);
+                        subject,applicationId);
                 }
         catch (Exception ex)
         {

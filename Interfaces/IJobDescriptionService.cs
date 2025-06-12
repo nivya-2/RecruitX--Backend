@@ -23,5 +23,6 @@ namespace RecruitX.Interfaces
         Task<bool> UpdateApplicationStatusAsync(int applicationId, string action);
 
         Task<BulkAddResultDTO> BulkAddCandidatesAsync(int jobRequisitionId, List<CandidateDetailsDTO> candidates, string createdByUserEmail);
+
     }
 }
