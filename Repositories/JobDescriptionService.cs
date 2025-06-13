@@ -170,42 +170,7 @@ Style Guidelines:
         }
 
         // Helper method to clean up the job description
-        private string CleanJobDescription(string rawContent)
-        {
-            if (string.IsNullOrEmpty(rawContent))
-                return rawContent;
-
-            var cleaned = rawContent;
-
-            // Remove markdown formatting characters but preserve structure
-            cleaned = cleaned.Replace("**", "")    // Remove bold markdown
-                            .Replace("##", "")     // Remove heading markdown  
-                            .Replace("#", "")      // Remove heading markdown
-                            .Replace("`", "");     // Remove code ticks
-
-            // Remove standalone asterisks (but be careful with bullet points)
-            // Only remove asterisks that are used for emphasis, not bullet points
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<!\n)\s*\*(?!\s)", "");
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\*(?=\w)", "");
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<=\w)\*", "");
-
-            // Clean up only excessive whitespace, preserve single spaces and line breaks
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+", " ");  // Multiple spaces/tabs to single space
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n[ \t]+", "\n"); // Remove spaces at start of lines
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+\n", "\n"); // Remove spaces at end of lines
-
-            // Clean up excessive line breaks (more than 2 consecutive)
-            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n{3,}", "\n\n");
-
-            // Fix common formatting issues
-            cleaned = cleaned.Replace("- -", "-")    // Fix double dashes in bullet points
-                            .Trim();                 // Remove leading/trailing whitespace only
-
-            return cleaned;
-        }
-
-
-     
+           
         public async Task<bool> SaveDraftJobDescriptionAsync(JobDescriptionDTO dto, string userEmail)
         {
             var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);

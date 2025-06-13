@@ -37,7 +37,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", 
+        policy.WithOrigins("http://localhost:4200", "https://recruitx20250613114107-h6dzh8c2f8hjfvaw.eastasia-01.azurewebsites.net", 
                 "https://localhost:7144")
               .AllowAnyHeader()
               .AllowAnyMethod()
