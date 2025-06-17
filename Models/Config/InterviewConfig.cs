@@ -14,7 +14,14 @@ namespace RecruitX.Models.Config
             entity.Property(e => e.Id).HasColumnName("Id");
 
             entity.Property(e => e.ApplicationId).HasColumnName("application_id").IsRequired();
+
             entity.Property(e => e.ScheduledAt).HasColumnName("scheduled_at").IsRequired();
+
+            entity.HasOne(e => e.Application)         // An Interview has one Application...
+                  .WithMany(a => a.Interviews)        // ...and an Application has MANY Interviews (this is the key change).
+                  .HasForeignKey(e => e.ApplicationId)
+                  .IsRequired();
+
             entity.Property(e => e.ScheduledTo).HasColumnName("scheduled_to").IsRequired();
 
             entity.Property(e => e.Status)
@@ -32,9 +39,9 @@ namespace RecruitX.Models.Config
 
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
 
-            entity.HasOne(e => e.Application)
-                  .WithMany()
-                  .HasForeignKey(e => e.ApplicationId);
+            //entity.HasOne(e => e.Application)
+            //      .WithMany()
+            //      .HasForeignKey(e => e.ApplicationId);
 
             entity.HasOne(e => e.Creator)
                   .WithMany()

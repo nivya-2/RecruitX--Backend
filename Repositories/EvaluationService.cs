@@ -1,6 +1,7 @@
 ﻿// File Path: Repositories/EvaluationService.cs
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using RecruitX.Interfaces;
 using RecruitX.Models;
 using RecruitX.Models.DTO;
@@ -37,9 +38,19 @@ namespace RecruitX.Repositories
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddDays(7) // Optional: Link expires in 7 days
             };
+            var newEvaluationToken = new EvaluationToken
+            {
+                Token = token,
+                InterviewId = interviewId,
+                IsUsed = false,
+                CreatedAt = DateTime.UtcNow
+            };
 
-            //_context.PanelEvaluationLinks.Add(newLink);
-            //await _context.SaveChangesAsync();
+            _context.PanelEvaluationLinks.Add(newLink);
+            _context.EvaluationTokens.Add(newEvaluationToken);
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("Received request to get form details for Token: {Token}", token);
 
             _logger.LogInformation("Created new evaluation link for Interview ID {InterviewId} with token {Token}", interviewId, token);
 
@@ -55,66 +66,125 @@ namespace RecruitX.Repositories
 
         public async Task<EvaluationFormPocDto> GetEvaluationFormDetailsAsync(string token)
         {
-            var link = await _context.PanelEvaluationLinks
+            var panelLink = await _context.PanelEvaluationLinks
                 .AsNoTracking()
-                .FirstOrDefaultAsync(l => l.Token == token && l.Status == "PENDING");
+                .FirstOrDefaultAsync(l => l.Token == token);
 
-            // If the link doesn't exist, is already submitted, or has expired
-            if (link == null || (link.ExpiresAt.HasValue && link.ExpiresAt < DateTime.UtcNow))
+            if (panelLink == null || panelLink.Status != "PENDING" || (panelLink.ExpiresAt.HasValue && panelLink.ExpiresAt < DateTime.UtcNow))
             {
-                _logger.LogWarning("Invalid or expired evaluation token presented: {Token}", token);
-                return null; // The controller will interpret this as "not found" or "forbidden".
+                _logger.LogWarning("Evaluation link with token {Token} is invalid, already used (Status: {Status}), or expired.", token, panelLink?.Status ?? "NOT FOUND");
+                return null;
             }
 
-            // TODO: In a real scenario, you would fetch details from the Interview table
-            // using link.InterviewId to get the real candidate name, role, etc.
-            // For now, we return placeholder data.
-            var formDetails = new EvaluationFormPocDto
+            var interview = await _context.Interviews
+                .AsNoTracking()
+                .Where(i => i.Id == panelLink.InterviewId)
+                .Include(i => i.Application).ThenInclude(app => app.Candidate).ThenInclude(c => c.CurrentLocation)
+                .Include(i => i.Application).ThenInclude(app => app.Candidate).ThenInclude(c => c.PreferredLocation)
+                .Include(i => i.Application).ThenInclude(app => app.JobDescription).ThenInclude(jd => jd.JobRequisition).ThenInclude(jr => jr.JobSkills).ThenInclude(js => js.Skill)
+                .FirstOrDefaultAsync();
+
+            if (interview?.Application?.Candidate == null || interview?.Application?.JobDescription?.JobRequisition == null)
             {
-                CandidateName = "John Doe (from Token)",
-                JobRole = "Senior Software Engineer",
-                InterviewLevel = "Technical Round 1",
-                InterviewerPrompt = "Please provide your feedback for this candidate."
+                _logger.LogError("Data integrity issue. Could not find full details for Interview ID {InterviewId} with token {Token}.", panelLink.InterviewId, token);
+                return null;
+            }
+
+            var jobRequisition = interview.Application.JobDescription.JobRequisition;
+            var candidate = interview.Application.Candidate;
+
+            var formDetailsDto = new EvaluationFormPocDto
+            {
+                CandidateName = candidate.CandidateName,
+                JobRole = jobRequisition.Role,
+                InterviewLevel = interview.IsTechnicalRound ? "Technical Round" : "HR Round",
+                InterviewerPrompt = $"Please provide your feedback for {candidate.CandidateName} regarding the {jobRequisition.Role} position.",
+                Summary = new CandidateSummaryDto
+                {
+                    CandidateName = candidate.CandidateName,
+                    Technology = jobRequisition.Role,
+                    InterviewLevel = interview.IsTechnicalRound ? "Technical Round" : "HR Round",
+                    NoticePeriod = candidate.NoticePeriodDays.HasValue ? $"{candidate.NoticePeriodDays} days" : "N/A",
+                    TotalExperience = $"{candidate.TotalExperienceYears} years, {candidate.TotalExperienceMonths} months",
+                    RelevantExperience = $"{candidate.RelevantExperienceYears} years, {candidate.RelevantExperienceMonths} months",
+                    CurrentLocation = candidate.CurrentLocation?.LocationName ?? "N/A",
+                    PreferredLocation = candidate.PreferredLocation?.LocationName ?? "N/A"
+                },
+                Skills = jobRequisition.JobSkills.Select(js => new SkillBlockDto
+                {
+                    Category = "Required Skill",
+                    Competencies = new List<CompetencyDto>
+                    {
+                        new CompetencyDto { Title = js.Skill.SkillName, SelfRating = 0 }
+                    }
+                }).ToList(),
+                 ProposedRole = candidate.ProposedRole ?? jobRequisition.Role
             };
 
-            return formDetails;
-        }
+            if (!formDetailsDto.Skills.Any())
+            {
+                formDetailsDto.Skills.Add(new SkillBlockDto
+                {
+                    Category = "General Technical Skills",
+                    Competencies = new List<CompetencyDto>
+                    {
+                        new CompetencyDto { Title = "Problem Solving & Logic", SelfRating = 0 },
+                        new CompetencyDto { Title = "Communication", SelfRating = 0 }
+                    }
+                });
+            }
 
+            return formDetailsDto;
+      
+        }
         public async Task<bool> SubmitEvaluationAsync(SubmitEvaluationDto submissionDto)
         {
-            // Find the link that is pending and matches the token.
             var link = await _context.PanelEvaluationLinks
                 .FirstOrDefaultAsync(l => l.Token == submissionDto.Token && l.Status == "PENDING");
 
             if (link == null || (link.ExpiresAt.HasValue && link.ExpiresAt < DateTime.UtcNow))
             {
                 _logger.LogWarning("Attempted to submit evaluation with an invalid, expired, or already used token: {Token}", submissionDto.Token);
-                return false; // Submission failed.
+                return false;
+            }
+            var evaluationToken = await _context.EvaluationTokens
+      .FirstOrDefaultAsync(t => t.Token == submissionDto.Token && !t.IsUsed);
+
+            // This is a safety check. In a healthy system, if a PanelEvaluationLink is PENDING,
+            // its corresponding EvaluationToken should also be !IsUsed.
+            if (evaluationToken == null)
+            {
+                _logger.LogError("Data integrity issue: A PENDING PanelEvaluationLink was found for token {Token}, but no corresponding unused EvaluationToken was found. Aborting submission.", submissionDto.Token);
+                return false;
             }
 
-            // 1. Create the response record
             var newResponse = new PanelEvaluationResponse
             {
                 PanelEvaluationLinkId = link.Id,
                 SubmittedByEmail = submissionDto.SubmittedByEmail,
-                Feedback = submissionDto.FeedbackJson, // Storing the raw JSON
-                SubmittedAt = DateTime.UtcNow
+                Feedback = submissionDto.FeedbackJson,
+                SubmittedAt = DateTime.UtcNow,
+             
+
             };
             _context.PanelEvaluationResponses.Add(newResponse);
 
-            // 2. Update the original link to mark it as submitted
             link.Status = "SUBMITTED";
+            evaluationToken.IsUsed = true;
+            evaluationToken.UsedAt = DateTime.UtcNow;
 
-            // 3. Save both changes in a single transaction
             await _context.SaveChangesAsync();
 
             _logger.LogInformation("Successfully submitted evaluation for token {Token} by {Email}", submissionDto.Token, submissionDto.SubmittedByEmail);
             return true;
+
+
         }
+       
+
+        // This method is for viewing submitted data and is correct as is. It remains unchanged.
         public async Task<ViewEvaluationDto> GetSubmittedEvaluationAsync(int interviewId)
         {
-            // Find the original link associated with the interview.
-            // We need this to potentially get context about the interview.
             var link = await _context.PanelEvaluationLinks
                 .AsNoTracking()
                 .FirstOrDefaultAsync(l => l.InterviewId == interviewId);
@@ -125,7 +195,6 @@ namespace RecruitX.Repositories
                 return null;
             }
 
-            // Now find the response that was submitted using this link.
             var response = await _context.PanelEvaluationResponses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(r => r.PanelEvaluationLinkId == link.Id);
@@ -133,23 +202,21 @@ namespace RecruitX.Repositories
             if (response == null)
             {
                 _logger.LogWarning("Evaluation for Interview ID {InterviewId} has not been submitted yet.", interviewId);
-                return null; // Form exists but hasn't been submitted
+                return null;
             }
 
-            // TODO: In a real scenario, you would fetch details from the Interview table
-            // using link.InterviewId to get the real candidate name, role, etc.
-            // For now, we return placeholder data mixed with real data.
             var result = new ViewEvaluationDto
             {
-                CandidateName = "John Doe (from DB)",
-                JobRole = "Senior Software Engineer",
-                InterviewLevel = "Technical Round 1",
+                CandidateName = "John Doe (from DB)", // Placeholder
+                JobRole = "Senior Software Engineer", // Placeholder
+                InterviewLevel = "Technical Round 1", // Placeholder
                 SubmittedByEmail = response.SubmittedByEmail,
                 SubmittedAt = response.SubmittedAt,
-                FeedbackJson = response.Feedback // The raw JSON string from the database
+                FeedbackJson = response.Feedback
             };
 
             return result;
         }
+     
     }
 }

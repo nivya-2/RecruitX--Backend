@@ -15,7 +15,7 @@ public class Interview
 
     public Boolean IsTechnicalRound { get; set; }
 
-    public List<String> InterviewersMail { get; set; }
+    public List<String>? InterviewersMail { get; set; }
 
     public DateTime ScheduledAt { get; set; }
     public DateTime ScheduledTo { get; set; }

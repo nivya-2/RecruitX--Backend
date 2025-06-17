@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250613054800_interviewMail")]
+    partial class interviewMail
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -540,6 +543,9 @@ namespace RecruitX.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("application_id");
 
+                    b.Property<int?>("ApplicationId1")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -575,6 +581,8 @@ namespace RecruitX.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("ApplicationId1");
 
                     b.HasIndex("CreatedBy");
 
@@ -665,6 +673,9 @@ namespace RecruitX.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("jr_id");
 
+                    b.Property<int?>("JobRequisitionId1")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Updates")
                         .HasColumnType("text")
                         .HasColumnName("updates");
@@ -674,6 +685,8 @@ namespace RecruitX.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("JobRequisitionId");
+
+                    b.HasIndex("JobRequisitionId1");
 
                     b.ToTable("job_descriptions", (string)null);
                 });
@@ -1388,10 +1401,14 @@ namespace RecruitX.Migrations
             modelBuilder.Entity("RecruitX.Models.Interview", b =>
                 {
                     b.HasOne("RecruitX.Models.Application", "Application")
-                        .WithMany("Interviews")
+                        .WithMany()
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("RecruitX.Models.Application", null)
+                        .WithMany("Interviews")
+                        .HasForeignKey("ApplicationId1");
 
                     b.HasOne("User", "Creator")
                         .WithMany()
@@ -1437,11 +1454,15 @@ namespace RecruitX.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("RecruitX.Models.JobRequisition", "JobRequisition")
+                    b.HasOne("RecruitX.Models.JobRequisition", null)
                         .WithMany()
                         .HasForeignKey("JobRequisitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("RecruitX.Models.JobRequisition", "JobRequisition")
+                        .WithMany()
+                        .HasForeignKey("JobRequisitionId1");
 
                     b.Navigation("CreatedByUser");
 

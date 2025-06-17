@@ -228,8 +228,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         JobStatus = result.assign.JobRequisition.JrStatus,
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
-           
-            })
+
+                    })
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -290,7 +290,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      RoleTitle = jr.Role,
                                      BusinessUnit = jr.Department != null ? jr.Department.Name : "N/A",
                                      location = jr.Location != null ? jr.Location.LocationName : "N/A",
-                                     openPositions = jr.NumPositions ,
+                                     openPositions = jr.NumPositions,
                                      Actions = new List<string> { jr.JDstatus.ToString() },
                                      HiringManager = jr.HiringManagerEmployee != null ?
             $"{jr.HiringManagerEmployee.FirstName} {jr.HiringManagerEmployee.LastName}" : "N/A",
@@ -410,14 +410,14 @@ Create a job description with ONLY these sections (do not add extra sections lik
             var candidate = application.Candidate;
             var jobDescription = application.JobDescription;
 
-                JobRequisition? jobRequisition = null;
-                if (jobDescription != null)
-                {
-                    // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
-                    jobRequisition = await _context.JobRequisitions
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
-                }
+            JobRequisition? jobRequisition = null;
+            if (jobDescription != null)
+            {
+                // Query 2: Fetch the JobRequisition separately using the FK from the JobDescription.
+                jobRequisition = await _context.JobRequisitions
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(jr => jr.Id == jobDescription.JobRequisitionId);
+            }
 
             return new CandidateDetailsDTO
             {
@@ -439,7 +439,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
             };
 
-            
+
         }
 
         public async Task<ApplicationDetailsPageDTO?> GetApplicationPageDetailsAsync(int applicationId)
@@ -752,8 +752,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
             _context.Locations.Add(newLocation);
             cache[locationString.ToLower()] = newLocation; // Add new entity to cache before save
             return newLocation;
-        
-    }
+
+        }
 
     }
 }

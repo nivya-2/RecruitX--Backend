@@ -17,7 +17,7 @@ namespace RecruitX.Interfaces
         /// </summary>
         /// <param name="token">The unique token from the URL.</param>
         /// <returns>An DTO with context if the token is valid and pending, otherwise null.</returns>
-        Task<EvaluationFormPocDto> GetEvaluationFormDetailsAsync(string token);
+        //Task<EvaluationFormPocDto> GetEvaluationFormDetailsAsync(string token);
 
         /// <summary>
         /// Submits the feedback from the evaluation form, saves it, and marks the link as used.
@@ -26,5 +26,6 @@ namespace RecruitX.Interfaces
         /// <returns>True if the submission was successful, false otherwise.</returns>
         Task<bool> SubmitEvaluationAsync(SubmitEvaluationDto submissionDto);
         Task<ViewEvaluationDto> GetSubmittedEvaluationAsync(int interviewId);
+        Task<EvaluationFormPocDto> GetEvaluationFormDetailsAsync(string token);
     }
 }

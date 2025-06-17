@@ -15,7 +15,7 @@ namespace RecruitX.Models.Config
 
             entity.Property(e => e.Token)
                   .HasColumnName("token")
-                  .HasMaxLength(20)
+                  .HasMaxLength(60)
                   .IsRequired();
 
             entity.Property(e => e.InterviewId).HasColumnName("interview_id").IsRequired();

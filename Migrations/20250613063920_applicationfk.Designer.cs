@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RecruitX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250613063920_applicationfk")]
+    partial class applicationfk
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -665,6 +668,9 @@ namespace RecruitX.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("jr_id");
 
+                    b.Property<int?>("JobRequisitionId1")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Updates")
                         .HasColumnType("text")
                         .HasColumnName("updates");
@@ -674,6 +680,8 @@ namespace RecruitX.Migrations
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("JobRequisitionId");
+
+                    b.HasIndex("JobRequisitionId1");
 
                     b.ToTable("job_descriptions", (string)null);
                 });
@@ -1437,11 +1445,15 @@ namespace RecruitX.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("RecruitX.Models.JobRequisition", "JobRequisition")
+                    b.HasOne("RecruitX.Models.JobRequisition", null)
                         .WithMany()
                         .HasForeignKey("JobRequisitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("RecruitX.Models.JobRequisition", "JobRequisition")
+                        .WithMany()
+                        .HasForeignKey("JobRequisitionId1");
 
                     b.Navigation("CreatedByUser");
 

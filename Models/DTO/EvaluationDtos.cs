@@ -8,7 +8,16 @@ namespace RecruitX.Models.DTO
         public string CandidateName { get; set; }
         public string JobRole { get; set; }
         public string InterviewLevel { get; set; }
-        public string InterviewerPrompt { get; set; } // e.g., "Please provide your feedback as the Technical Interviewer"
+        public string InterviewerPrompt { get; set; }
+
+        public CandidateSummaryDto Summary { get; set; }
+
+        // This list maps directly to the 'skills' FormArray in the Angular form
+        public List<SkillBlockDto> Skills { get; set; }
+        public string ProposedRole { get; set; }
+
+
+        // e.g., "Please provide your feedback as the Technical Interviewer"
     }
 
     /// <summary>
@@ -42,4 +51,27 @@ namespace RecruitX.Models.DTO
 
         public string FeedbackJson { get; set; } // The raw JSON feedback
     }
+    public class SkillBlockDto
+    {
+        public string Category { get; set; }
+        public List<CompetencyDto> Competencies { get; set; }
+    }
+    public class CompetencyDto
+    {
+        public string Title { get; set; }
+        public int SelfRating { get; set; }
+    }
+
+    public class CandidateSummaryDto
+    {
+        public string CandidateName { get; set; }
+        public string Technology { get; set; }
+        public string InterviewLevel { get; set; }
+        public string NoticePeriod { get; set; }
+        public string TotalExperience { get; set; }
+        public string RelevantExperience { get; set; }
+        public string CurrentLocation { get; set; }
+        public string PreferredLocation { get; set; }
+    }
+
 }
