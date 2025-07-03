@@ -164,6 +164,7 @@ Style Guidelines:
             {
                 _logger.LogWarning(ex, "Gemini API failed to generate job description");
                 dto.JobDescription = "AI generation failed. Please write manually.";
+                Console.WriteLine(ex);
             }
 
             return dto;

@@ -22,10 +22,9 @@ namespace RecruitX.Models.Config
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            
-            entity.HasOne<JobRequisition>()
-                .WithMany()
-                .HasForeignKey(e => e.JobRequisitionId);
+
+            entity.HasOne(j => j.JobRequisition).WithMany()
+                .HasForeignKey(j => j.JobRequisitionId);
 
             entity.HasOne(j => j.CreatedByUser)
     .WithMany()
