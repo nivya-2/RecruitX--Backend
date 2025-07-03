@@ -4,7 +4,7 @@ using static RecruitX.Controllers.ApplicationDetailsDTO;
 
 namespace RecruitX.Interfaces
 {
-    public interface ITrackJdService
+    public interface IJobDescriptionService
     {
         Task<IEnumerable<TrackJdDTO>> GetJobDescriptionsForUserAsync(string userEmail);
         Task<IEnumerable<PendingJdDTO>> GetPendingJdsForUserAsync(string userEmail);
@@ -23,5 +23,6 @@ namespace RecruitX.Interfaces
         Task<bool> UpdateApplicationStatusAsync(int applicationId, string action);
 
         Task<BulkAddResultDTO> BulkAddCandidatesAsync(int jobRequisitionId, List<CandidateDetailsDTO> candidates, string createdByUserEmail);
+
     }
 }

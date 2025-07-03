@@ -11,23 +11,52 @@ using static RecruitX.Controllers.ApplicationDetailsDTO;
 
 namespace RecruitX.Repositories
 {
-    public class TrackJobDescriptionService : ITrackJdService
+    public class JobDescriptionService : IJobDescriptionService
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<TrackJobDescriptionService> _logger;
+        private readonly ILogger<JobDescriptionService> _logger;
         private readonly GeminiJobDescriptionGenerator _gemini;
+        private readonly IRecruitmentEmailService _recruitmentEmailService;
+
 
         private static readonly List<ApplicationStatus> Workflow = Enum.GetValues<ApplicationStatus>()
           .Where(s => s != ApplicationStatus.Rejected) // Exclude Rejected from the standard path
           .OrderBy(s => (int)s)
           .ToList();
 
+        private string CleanJobDescription(string rawContent)
+        {
+            if (string.IsNullOrEmpty(rawContent))
+                return rawContent;
 
-        public TrackJobDescriptionService(AppDbContext context, ILogger<TrackJobDescriptionService> logger, GeminiJobDescriptionGenerator gemini)
+            var cleaned = rawContent;
+
+            cleaned = cleaned.Replace("**", "")
+                             .Replace("##", "")
+                             .Replace("#", "")
+                             .Replace("`", "");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<!\n)\s*\*(?!\s)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\*(?=\w)", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?<=\w)\*", "");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+", " ");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n[ \t]+", "\n");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"[ \t]+\n", "\n");
+
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\n{3,}", "\n\n");
+
+            cleaned = cleaned.Replace("- -", "-").Trim();
+
+            return cleaned;
+        }
+
+        public JobDescriptionService(AppDbContext context, ILogger<JobDescriptionService> logger, GeminiJobDescriptionGenerator gemini, IRecruitmentEmailService recruitmentEmailService)
         {
             _context = context;
             _logger = logger;
             _gemini = gemini;
+            _recruitmentEmailService = recruitmentEmailService;
 
         }
 
@@ -55,7 +84,6 @@ namespace RecruitX.Repositories
                 JobSpecification = jr.JobSpecification,
                 OnboardingDate = jr.ExpectedOnboardingDate?.ToString("dd/MM/yyyy"),
                 JobDescription = jr.JobDuties,
-
             };
 
             var skills = jr.JobSkills.Select(js => new
@@ -71,34 +99,34 @@ namespace RecruitX.Repositories
             var prompt = $"""
 You are an expert HR professional creating a compelling job description. Generate a comprehensive, professional job posting for the following position:
 
-**Position Details:**
+Position Details:
 - Role: {dto.Role}
 - Required Experience: {dto.TotalExperienceYears} years
 - Educational Requirements: {dto.Qualification}
 
-**Skills & Competencies:**
+Skills & Competencies:
 - Essential Skills (Must Have): {dto.SkillsMandatory}
 - Core Skills (Preferred): {dto.SkillsPrimary}  
 - Additional Skills (Nice to Have): {dto.SkillsGood}
 
-**Role Information:**
+Role Information:
 - Purpose/Objective: {dto.JobPurpose}
 - Key Specifications: {dto.JobSpecification}
 - Primary Responsibilities: {dto.JobDescription}
 
-**Output Requirements:**
+Output Requirements:
 Create a job description with ONLY these sections (do not add extra sections like Department, Reports To, or Compensation):
 
-1. **Job Title & Summary**: Start with the role title, followed by 2-3 compelling sentences about the role's impact and what makes it exciting
-2. **Key Responsibilities**: 6-8 bullet points using strong action verbs, focusing on outcomes and value delivered
-3. **Required Qualifications**: Clearly separate education, experience, and technical requirements
-4. **Technical Skills**: Present skills in the exact priority structure provided:
-   - **Essential/Mandatory**: [List mandatory skills]
-   - **Primary/Preferred**: [List primary skills]  
-   - **Good to Have/Nice to Have**: [List additional skills]
-5. **What You'll Gain**: Brief mention of growth opportunities, learning, or impact (2-3 sentences)
+1. Job Title & Summary: Start with the role title, followed by 2-3 compelling sentences about the role's impact and what makes it exciting
+2. Key Responsibilities: 6-8 bullet points using strong action verbs, focusing on outcomes and value delivered
+3. Required Qualifications: Clearly separate education, experience, and technical requirements
+4. Technical Skills: Present skills in the exact priority structure provided:
+   - Essential/Mandatory: [List mandatory skills]
+   - Primary/Preferred: [List primary skills]  
+   - Good to Have/Nice to Have: [List additional skills]
+5. What You'll Gain: Brief mention of growth opportunities, learning, or impact (2-3 sentences)
 
-**Critical Instructions:**
+Critical Instructions:
 - Do NOT add sections for Department, Reports To, Compensation, or Benefits
 - Do NOT use placeholder text like "(Add details here)" or "(experience a plus)"
 - Do NOT mention specific company names, products, or platforms (like RecruitX)
@@ -113,26 +141,37 @@ Create a job description with ONLY these sections (do not add extra sections lik
 - Do NOT add specific technology versions unless provided in the DTO
 - Keep responsibilities focused and concise - avoid generic software development tasks
 - Write in a way that could apply to any technology company
+- IMPORTANT: Do NOT use asterisks (*) anywhere in your response - use plain text formatting only
+- Do NOT use markdown formatting symbols like *, **, #, ##, or any other special characters for emphasis
+- Use plain text with proper spacing and line breaks for formatting
 
-**Style Guidelines:**
+Style Guidelines:
 - Use active voice and impactful action verbs (develop, architect, optimize, lead, etc.)
 - Focus on what the candidate will accomplish, not just what they'll do
 - Make technical requirements specific and measurable
 - Ensure the description flows naturally and tells a story about the role
+- Format with plain text only - no special formatting characters
 """;
+
             try
             {
-                dto.JobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+                var rawJobDescription = await _gemini.GenerateJobDescriptionAsync(prompt);
+
+                // Clean up the generated content by removing unwanted formatting
+                dto.JobDescription = CleanJobDescription(rawJobDescription);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Gemini API failed to generate job description");
                 dto.JobDescription = "AI generation failed. Please write manually.";
+                Console.WriteLine(ex);
             }
 
             return dto;
         }
 
+        // Helper method to clean up the job description
+           
         public async Task<bool> SaveDraftJobDescriptionAsync(JobDescriptionDTO dto, string userEmail)
         {
             var jr = await _context.JobRequisitions.FirstOrDefaultAsync(j => j.Id == dto.JobRequisitionId);
@@ -145,6 +184,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
 
             var existingJD = await _context.JobDescriptions
                 .FirstOrDefaultAsync(j => j.JobRequisitionId == dto.JobRequisitionId);
+
+            Console.WriteLine(existingJD);
 
             if (existingJD == null)
             {
@@ -162,6 +203,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
             {
                 existingJD.JobDesc = dto.JobDescription;
                 existingJD.Updates = dto.AdditionalInfo;
+                _context.JobDescriptions.Update(existingJD);
             }
 
             jr.JDstatus = Status.Draft;
@@ -229,7 +271,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                         FilledPositions = result.jd.FilledPositions,
                         NumberOfPositions = result.assign.JobRequisition.NumPositions
 
-                    })
+                    }).OrderByDescending(jr => jr.CreatedDate)
+
                     .ToListAsync();
 
                 return jobDescriptions;
@@ -297,6 +340,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                                      CreatedDate = DateOnly.FromDateTime(jr.CreatedAt),
                                      //JobStatus = jr.JDstatus.G // Or jr.JdStatus if needed
                                  })
+                                                 .OrderByDescending(jr => jr.CreatedDate)
+
     .ToListAsync();
 
                 //_logger.LogInformation("Found {Count} pending JDs for user {UserId}", pendingJds.Count, userId);
@@ -373,26 +418,26 @@ Create a job description with ONLY these sections (do not add extra sections lik
             // if (!jdExists) {
             //     return Enumerable.Empty<JdApplicantsDTO>(); // Or throw NotFoundException
             // }
-
             var applicantsDto = await _context.Applications
-                .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
-                .Select(app => new JdApplicantsDTO
-                {
-                    CandidateId = app.Candidate.Id,
-                    CandidateName = app.Candidate.CandidateName,
-                    CandidateEmail = app.Candidate.Email,
-                    CandidatePhone = app.Candidate.ContactNumber,
-                    // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
-                    // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
-                    TotalExperienceYears = app.Candidate.TotalExperienceYears,
-                    Source = app.Candidate.Source,
-                    ApplicationID = app.Id
+       .Where(app => app.JobDescriptionId == jobDescriptionId && app.Candidate != null) // Ensure candidate is not null
+       .Select(app => new JdApplicantsDTO
+       {
+           CandidateId = app.Candidate.Id,
+           CandidateName = app.Candidate.CandidateName,
+           CandidateEmail = app.Candidate.Email,
+           CandidatePhone = app.Candidate.ContactNumber,
+           // Assuming Candidate.TotalExperienceYears is 'short' or can be safely cast to 'short'.
+           // If Candidate.TotalExperienceYears is int, you might need a cast: (short)app.Candidate.TotalExperienceYears
+           TotalExperienceYears = app.Candidate.TotalExperienceYears,
+           Source = app.Candidate.Source,
+           ApplicationID = app.Id
 
-                    // The 'Actions' property is initialized by the JdApplicantsDTO constructor
-                })
-                .ToListAsync();
+           // The 'Actions' property is initialized by the JdApplicantsDTO constructor
+       })
+       .ToListAsync();
 
             return applicantsDto;
+
         }
 
         public async Task<CandidateDetailsDTO?> GetCandidateDetailsByApplicationIdAsync(int applicationId)
@@ -525,6 +570,7 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 }
 
                 var oldStatus = application.Status;
+
                 ApplicationStatus newStatus;
 
                 if (action.Equals("progress", StringComparison.OrdinalIgnoreCase))
@@ -544,6 +590,8 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 {
                     return false; // Invalid action
                 }
+                await HandleStatusSpecificActions(application, oldStatus, newStatus);
+
                 if (newStatus == ApplicationStatus.Joined)
                 {
                     var jobDescription = await _context.JobDescriptions.FindAsync(application.JobDescriptionId);
@@ -627,51 +675,68 @@ Create a job description with ONLY these sections (do not add extra sections lik
                 return result;
             }
 
-            // 1. Get all unique emails, locations, and skills from the DTO list
             var emailsToFind = candidates.Select(c => c.CandidateEmail.ToLower()).ToHashSet();
             var locationStringsToFind = candidates.Select(c => c.CurrentLocation).Concat(candidates.Select(c => c.preferedLocation)).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!.ToLower()).ToHashSet();
             var skillNamesToFind = candidates.SelectMany(c => (c.skill ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).Select(s => s.ToLower()).ToHashSet();
 
-            // 2. Pre-fetch existing records from the database in single queries
             var existingCandidates = await _context.Candidates.Where(c => emailsToFind.Contains(c.Email.ToLower())).ToDictionaryAsync(c => c.Email.ToLower(), c => c);
             var existingLocations = await _context.Locations.Where(l => locationStringsToFind.Contains(l.LocationName.ToLower())).ToDictionaryAsync(l => l.LocationName.ToLower(), l => l);
             var existingSkills = await _context.Skills.Where(s => skillNamesToFind.Contains(s.SkillName.ToLower())).ToDictionaryAsync(s => s.SkillName.ToLower(), s => s);
-
-            // --- PROCESSING LOOP (One transaction per candidate) ---
 
             foreach (var dto in candidates)
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // 1. Get or Create Location (using the pre-fetched cache)
                     var currentLocation = await GetOrCreateLocationAsync(dto.CurrentLocation, existingLocations);
                     var preferredLocation = await GetOrCreateLocationAsync(dto.preferedLocation, existingLocations);
 
-                    // 2. Get or Create Candidate (using the pre-fetched cache)
                     if (!existingCandidates.TryGetValue(dto.CandidateEmail.ToLower(), out var candidate))
                     {
                         candidate = new Candidate { CreatedAt = DateTime.UtcNow };
                         _context.Candidates.Add(candidate);
-                        existingCandidates[dto.CandidateEmail.ToLower()] = candidate; // Add to cache for this run
+                        existingCandidates[dto.CandidateEmail.ToLower()] = candidate;
                     }
 
-                    // Map/update properties
+                    // --- MAPPING SECTION (Carefully completed) ---
                     candidate.Email = dto.CandidateEmail;
                     candidate.CandidateName = dto.CandidateName;
-                    // ... map all other candidate properties ...
+                    candidate.ContactNumber = dto.CandidatePhone;
+                    candidate.TotalExperienceYears = (short)dto.TotalExperience;
+                    candidate.TotalExperienceMonths = 0;
+                    candidate.RelevantExperienceYears = (short)dto.RelavantExperience;
+                    candidate.RelevantExperienceMonths = 0;
+                    candidate.CurrentEmployer = dto.CurrentEmployer;
+                    candidate.CurrentCTC = dto.CurrentCTC;
+                    candidate.NoticePeriodDays = dto.NoticePeriod;
+                    candidate.LinkedinUrl = dto.linkedin;
                     candidate.CurrentLocation = currentLocation;
                     candidate.PreferredLocation = preferredLocation;
-                    candidate.UpdatedAt = DateTime.UtcNow;
                     candidate.Source = dto.Source;
+                    candidate.SubSource = dto.subSource;
                     candidate.ProposedRole = !string.IsNullOrWhiteSpace(dto.role) ? dto.role : "Not specified";
+                    candidate.UpdatedAt = DateTime.UtcNow;
 
-                    // 3. Create Application
+
+                    var hasApplication = await _context.Applications
+    .AsNoTracking()
+    .AnyAsync(app => app.CandidateId == candidate.Id && app.JobDescriptionId == jobDescription.Id);
+
+                    if (hasApplication)
+                    {
+                        result.FailureCount++;
+                        result.FailureMessages.Add($"Application for candidate {dto.CandidateEmail} already exists for requisition {jobRequisitionId}.");
+                        await transaction.RollbackAsync();
+                        continue; // Skip to next candidate
+                    }
+
+
+
                     var application = new Application
                     {
-                        Candidate = candidate, // Link the entity directly
+                        Candidate = candidate,
                         JobDescriptionId = jobDescription.Id,
-                        Status = ApplicationStatus.Applied,
+                        Status = ApplicationStatus.TechnicalInterview,
                         ExperienceYears = dto.TotalExperience,
                         ExperienceMonths = 0,
                         ExpectedCTC = dto.ExpectedCTC,
@@ -680,37 +745,59 @@ Create a job description with ONLY these sections (do not add extra sections lik
                     };
                     _context.Applications.Add(application);
 
-
                     var initialHistoryRecord = new ApplicationStatusHistory
                     {
-                        Application = application, // Link the entity directly
+                        Application = application,
                         OldStatus = null,
-                        NewStatus = ApplicationStatus.Applied,
-                        ChangedAt = (DateTime)application.SubmittedOn, // Use the same timestamp
+                        NewStatus = ApplicationStatus.TechnicalInterview,
+                        ChangedAt = (DateTime)application.SubmittedOn,
                         ChangedBy = createdByUser.Id
                     };
                     _context.ApplicationStatusHistories.Add(initialHistoryRecord);
 
-                    // 4. Get or Create Skills and link them
                     if (!string.IsNullOrWhiteSpace(dto.skill))
                     {
-                        var skillNames = dto.skill.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        var skillNames = dto.skill
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(s => s.ToLower())
+                            .ToList();
+
+                        var alreadyLinkedSkillNames = new HashSet<string>();
+
+                        // Extract skills already tracked in EF (Application just added, so we rely on in-memory)
+                        foreach (var skillEntry in _context.ApplicationSkills.Local.Where(a => a.Application == application))
+                        {
+                            alreadyLinkedSkillNames.Add(skillEntry.Skill.SkillName.ToLower());
+                        }
+
                         foreach (var skillName in skillNames)
                         {
-                            if (!existingSkills.TryGetValue(skillName.ToLower(), out var skill))
+                            if (!existingSkills.TryGetValue(skillName, out var skill))
                             {
                                 skill = new Skill { SkillName = skillName };
                                 _context.Skills.Add(skill);
-                                existingSkills[skillName.ToLower()] = skill; // Add to cache
+                                existingSkills[skillName] = skill;
                             }
-                            _context.ApplicationSkills.Add(new ApplicationSkill { Application = application, Skill = skill });
+
+                            // Prevent duplicate ApplicationSkill
+                            if (alreadyLinkedSkillNames.Contains(skill.SkillName.ToLower()))
+                                continue;
+
+                            _context.ApplicationSkills.Add(new ApplicationSkill
+                            {
+                                Application = application,
+                                Skill = skill
+                            });
+
+                            alreadyLinkedSkillNames.Add(skill.SkillName.ToLower());
                         }
                     }
 
-                    // --- BATCH SAVE ---
-                    // Save all changes for this candidate (Candidate, Application, Skills, Locations) in one go.
+
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
+                    result.SuccessfulApplicationIds.Add(application.Id);
+
                     result.SuccessCount++;
                 }
                 catch (Exception ex)
@@ -723,9 +810,6 @@ Create a job description with ONLY these sections (do not add extra sections lik
             }
             return result;
         }
-
-        // --- HELPER METHODS FOR IN-MEMORY UPSERT ---
-
         private async Task<Location?> GetOrCreateLocationAsync(string? locationString, Dictionary<string, Location> cache)
         {
             if (string.IsNullOrWhiteSpace(locationString)) return null;
@@ -754,6 +838,46 @@ Create a job description with ONLY these sections (do not add extra sections lik
             return newLocation;
 
         }
+
+        private async Task HandleStatusSpecificActions(Application application, ApplicationStatus oldStatus, ApplicationStatus newStatus)
+        {
+            _logger.LogInformation(
+        "HandleStatusSpecificActions called for App ID: {ApplicationId}. OldStatus: {OldStatus}, NewStatus: {NewStatus}",
+        application.Id, oldStatus, newStatus);
+            try
+            {
+                switch (newStatus)
+                {
+
+
+                    case ApplicationStatus.OfferLetterAccepted:
+                        await _recruitmentEmailService.SendJobOfferEmailAsync(application.Id);
+                        break;
+
+                    case ApplicationStatus.Rejected:
+                        await _recruitmentEmailService.SendRejectionEmailAsync(application.Id);
+                        break;
+
+                    // Add more cases as needed
+                    default:
+                        // No specific action for this status
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing status-specific actions for application {ApplicationId} from {OldStatus} to {NewStatus}",
+                    application.Id, oldStatus, newStatus);
+                _logger.LogError(ex, "FAILED to send job offer email to {CandidateEmail} for Application ID {ApplicationId}",
+                       application.Id
+        );
+
+                throw; // This will be caught by the calling method's try-catch
+            }
+        }
+
+      
+      
 
     }
 }

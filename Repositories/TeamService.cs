@@ -69,5 +69,50 @@ namespace RecruitX.Repositories
 
             return result;
         }
+
+        public async Task<IEnumerable<TeamMemberDTO>> GetRecruitersForLeadAsync(string leadUserEmail)
+        {
+
+            // 1. Find the User ID for the logged-in lead from their email.
+            var lead = await _context.Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == leadUserEmail.ToLower());
+
+            if (lead == null)
+            {
+                return Enumerable.Empty<TeamMemberDTO>();
+            }
+
+            // 2. Find all recruiters who report to this lead.
+            var recruiters = await _context.LeadToRecruiters
+                .Where(ltr => ltr.Id == lead.Id) // Filter by the lead's User ID
+                .Include(ltr => ltr.Recruiter).ThenInclude(u => u.Employee)
+                .Select(ltr => ltr.Recruiter)
+                .Where(rec => rec.Employee != null) // Ensure the recruiter has an associated employee record
+                .ToListAsync();
+
+            if (!recruiters.Any())
+            {
+                return Enumerable.Empty<TeamMemberDTO>();
+            }
+
+            // 3. Get JR assignment counts for only these recruiters in a single query.
+            var recruiterIds = recruiters.Select(r => r.Id).ToList();
+            var jrCounts = await _context.JrAssignments
+                .Where(jr => recruiterIds.Contains(jr.AssignedTo))
+                .GroupBy(jr => jr.AssignedTo)
+                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+            // 4. Project the recruiter data into the DTO format.
+            return recruiters.Select(rec => new TeamMemberDTO
+            {
+                UserId = rec.Employee!.Id,
+                MemberName = $"{rec.Employee.FirstName} {rec.Employee.LastName}",
+                JobTitle = rec.Employee.Position,
+                JrAssigned = jrCounts.GetValueOrDefault(rec.Id, 0),
+                // As requested, ReportingLead is omitted and the lead is not in the list.
+                Actions = new List<string> { "View assigned JR", "Remove" }
+            }).ToList();
+        }
     }
 }
+

@@ -1,10 +1,11 @@
 ﻿using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using RecruitX.Interfaces;
 
 namespace RecruitX.AI
 {
-    public class GeminiJobDescriptionGenerator
+    public class GeminiJobDescriptionGenerator:IJobDescriptionGenerator
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
@@ -14,6 +15,7 @@ namespace RecruitX.AI
         public GeminiJobDescriptionGenerator(IHttpClientFactory httpClientFactory, IConfiguration config)
         {
             _httpClient = httpClientFactory.CreateClient();
+
 
             _apiKey = config["Gemini:ApiKey"] ?? throw new InvalidOperationException("Gemini API key not configured.");
             _model = config["Gemini:Model"] ?? "gemini-1.5-flash-latest"; // Provide a default

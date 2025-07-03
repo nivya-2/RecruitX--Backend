@@ -12,6 +12,7 @@ public class Interview
     public Application Application { get; set; } = default!;
 
     public List<InterviewPanel> InterviewPanels { get; set; } = new();
+    public int InterviewCount { get; set; }
 
     public Boolean IsTechnicalRound { get; set; }
 

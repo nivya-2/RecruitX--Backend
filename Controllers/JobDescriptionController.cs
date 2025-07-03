@@ -14,8 +14,10 @@ namespace RecruitX.Controllers
     [ApiController]
     public class JobDescriptionController : ControllerBase
     {
-        private readonly ITrackJdService _jobTrackingService;
+        private readonly IJobDescriptionService _jobTrackingService;
         private readonly ILogger<JobDescriptionController> _logger;
+        private readonly IRecruitmentEmailService _recruitmentEmailService;
+
         private readonly AppDbContext _context;
         private static readonly List<ApplicationStatus> Workflow = new List<ApplicationStatus>
     {
@@ -29,10 +31,12 @@ namespace RecruitX.Controllers
     };
 
 
-        public JobDescriptionController(ITrackJdService jobTrackingService, ILogger<JobDescriptionController> logger, AppDbContext context)
+        public JobDescriptionController(IJobDescriptionService jobTrackingService, ILogger<JobDescriptionController> logger, AppDbContext context, IRecruitmentEmailService recruitmentEmailService)
         {
             _jobTrackingService = jobTrackingService;
             _logger = logger;
+            _recruitmentEmailService = recruitmentEmailService;
+
             _context = context;
         }
         [HttpGet("draft/{jobRequisitionId:int}")]
@@ -226,6 +230,18 @@ namespace RecruitX.Controllers
 
             // Pass the userEmail string to the service
             var result = await _jobTrackingService.BulkAddCandidatesAsync(jobRequisitionId, candidates, userEmail);
+            try
+            {
+                var screeningEmailTasks = result.SuccessfulApplicationIds
+                    .Select(appId => _recruitmentEmailService.SendScreeningEmailAsync(appId));
+
+                await Task.WhenAll(screeningEmailTasks);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while sending screening emails after bulk add.");
+                // Optional: Add to FailureMessages or handle however needed
+            }
 
             // The response logic remains the same
             if (result.SuccessCount > 0 && result.FailureCount > 0)
@@ -240,5 +256,6 @@ namespace RecruitX.Controllers
             return Created("", result);
         }
 
+      
     }
 }

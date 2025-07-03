@@ -59,5 +59,52 @@ namespace RecruitX.Controllers
                 return StatusCode(500, new { message = "Failed to generate test link. Does the interview ID exist?" });
             }
         }
+
+        [HttpGet("schedule/{jrId}")]
+        public async Task<IActionResult> GetCandidatesByJD(int jrId)
+        {
+            var candidates = await _interviewRepo.GetCandidatesByJobDescriptionIdAsync(jrId);
+            return Ok(candidates);
+        }
+
+        [HttpPost("shortlist")]
+
+        public async Task<IActionResult> ShortlistCandidate(int jrId, int CanId)
+        {
+            var success = await _interviewRepo.ShortlistCandidateAsync(jrId, CanId);
+            if (!success)
+            {
+                return BadRequest("Application not found or is not in a state that can be shortlisted.");
+            }
+            return NoContent();
+        }
+
+        [HttpPost("reject")]
+
+        public async Task<IActionResult> RejectCandidate(int jrId, int CanId)
+        {
+            var success = await _interviewRepo.RejectCandidateAsync(jrId, CanId);
+            if (!success)
+            {
+                return BadRequest("Application not found or is already in a terminal state.");
+            }
+            return NoContent();
+        }
+
+        [HttpPost("add-rounds")]
+
+        public async Task<IActionResult> IncrementInterviewCount(int jrId, int CanId)
+        {
+            var success = await _interviewRepo.IncrementInterviewCountAsync(jrId, CanId);
+
+            if (!success)
+            {
+                // This indicates that no matching application was found for the given JR and Candidate.
+                return NotFound("No matching application found for the specified Job Requisition and Candidate.");
+            }
+
+            return NoContent(); // A 204 No Content is a standard and appropriate response for a successful update with no body.
+        }
     }
+}
 }

@@ -17,18 +17,19 @@ using RecruitX.AI;
 using RecruitX.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Logging.ClearProviders(); // Optional, but if used, do it first
+builder.Logging.AddConsole();     // Log to the console window
+builder.Logging.AddDebug();       // Log to Visual Studio's Debug window
 var config = builder.Configuration;
 
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole(); // Add Console logger or configure as needed
 
 builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("SmtpSettings"));
 builder.Services.AddScoped<IGmailEmailService, GmailEmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
+builder.Services.AddScoped<IInterviewPanelService, InterviewPanelService>();
 
 
 // Allow CORS
@@ -36,7 +37,8 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularDev", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", "https://recruitx20250613114107-h6dzh8c2f8hjfvaw.eastasia-01.azurewebsites.net", 
+                "https://localhost:7144")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -151,7 +153,9 @@ builder.Services.AddScoped<IJobRequisitionService, JobRequisitionService>();
 builder.Services.AddScoped<IJrAssignmentService, JrAssignmentService>();
 builder.Services.AddScoped<IEmailService, GraphEmailService>();
 builder.Services.AddScoped<IInterviewService, InterviewRepository>();
-builder.Services.AddScoped<ITrackJdService, TrackJobDescriptionService>();
+
+builder.Services.AddScoped<IJobDescriptionService, JobDescriptionService>();
+builder.Services.AddScoped<IRecruitmentEmailService, RecruitmentEmailService>();
 builder.Services.AddScoped<IEvaluationService, EvaluationService>();
 
 
@@ -167,6 +171,7 @@ builder.Services.AddControllers(options =>
 builder.Services.AddHttpClient(); // Required for IHttpClientFactory
 builder.Services.AddScoped<GeminiJobDescriptionGenerator>();
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 
